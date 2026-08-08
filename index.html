@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="hi">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Gill AI Ultimate v8</title>
+
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+
+</head>
+
+
+<body>
+
+
+<div class="app">
+
+
+<header>
+
+<h2>🤖 Gill AI Ultimate v8</h2>
+
+<button id="menuBtn">☰</button>
+
+</header>
+
+
+
+<section class="profile">
+
+<div class="avatar">👤</div>
+
+<div>
+<h3>Guest</h3>
+<p>Free User</p>
+</div>
+
+</section>
+
+
+
+
+<nav>
+
+<button id="homeBtn">
+🏠<br>Home
+</button>
+
+
+<button id="chatBtn">
+💬<br>Chat
+</button>
+
+
+<button id="imageBtn">
+🎨<br>AI Image
+</button>
+
+
+<button id="videoBtn">
+🎬<br>AI Video
+</button>
+
+
+<button id="editorBtn">
+✂️<br>Video Editor
+</button>
+
+
+<button id="historyBtn">
+🕒<br>History
+</button>
+
+
+<button id="settingsBtn">
+⚙️<br>Settings
+</button>
+
+</nav>
+
+
+
+
+<main id="chatBox">
+
+
+<div class="message ai">
+
+👋 नमस्ते! मैं Gill AI Ultimate v8 हूँ।  
+मैं आपकी AI Assistant हूँ।
+
+</div>
+
+
+</main>
+
+
+
+
+
+<div class="input-box">
+
+
+<button id="voiceBtn">
+🎤
+</button>
+
+
+<input 
+id="userInput"
+placeholder="अपना संदेश लिखें..."
+>
+
+
+<button id="imageUploadBtn">
+🖼️
+</button>
+
+
+<button id="sendBtn">
+➤
+</button>
+
+
+</div>
+
+
+
+</div>
+
+
+
+<script src="script.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+  .then(() => {
+    console.log("Gill AI v8 Service Worker Ready");
+  })
+  .catch((error) => {
+    console.log("Service Worker Error", error);
+  });
+}
+</script>
+
+</body>
+
+  </html>
