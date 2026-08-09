@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
 
-    // Only POST Request
+    // Only POST
     if (req.method !== "POST") {
         return res.status(405).json({
             error: "Method Not Allowed"
@@ -9,7 +9,17 @@ export default async function handler(req, res) {
 
     try {
 
-        const { message } = req.body;
+        // Get Gemini API key from Vercel
+        const apiKey = process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            return res.status(500).json({
+                error: "GEMINI_API_KEY is missing in Vercel."
+            });
+        }
+
+        // Get user message
+        const { message } = req.body || {};
 
         if (!message) {
             return res.status(400).json({
@@ -17,61 +27,86 @@ export default async function handler(req, res) {
             });
         }
 
+        // Gemini API
         const response = await fetch(
-            "https://api.openai.com/v1/chat/completions",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
+            encodeURIComponent(apiKey),
             {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization":
-                        `Bearer ${process.env.OPENAI_API_KEY}`
+                    "Content-Type": "application/json"
                 },
 
                 body: JSON.stringify({
-                    model: "gpt-4.1-mini",
-
-                    messages: [
-                        {
-                            role: "system",
-                            content:
-                                "You are Gill AI, a helpful AI assistant."
-                        },
+                    contents: [
                         {
                             role: "user",
-                            content: message
+                            parts: [
+                                {
+                                    text:
+                                        "You are Gill AI, a helpful AI assistant. Reply clearly in Hindi or English.\n\nUser: " +
+                                        message
+                                }
+                            ]
                         }
                     ],
-
-                    temperature: 0.7
+                    generationConfig: {
+                        temperature: 0.7
+                    }
                 })
             }
         );
 
         const data = await response.json();
 
+        // Gemini API error
         if (!response.ok) {
+
+            console.error(
+                "Gemini API Error:",
+                data
+            );
+
             return res.status(response.status).json({
                 error:
-                    data.error?.message ||
-                    "OpenAI API request failed"
+                    data?.error?.message ||
+                    "Gemini API request failed"
             });
         }
 
+        // Get Gemini reply
         const reply =
-            data.choices?.[0]?.message?.content ||
-            "AI response unavailable";
+            data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
+        if (!reply) {
+
+            console.error(
+                "Gemini response:",
+                data
+            );
+
+            return res.status(500).json({
+                error: "AI response unavailable"
+            });
+        }
+
+        // Success
         return res.status(200).json({
             reply: reply
         });
 
     } catch (error) {
 
-        console.error("Gill AI API Error:", error);
+        console.error(
+            "Gill AI Gemini Server Error:",
+            error
+        );
 
         return res.status(500).json({
-            error: "Server Error"
+            error:
+                error?.message ||
+                "Server Error"
         });
     }
-              }
+}
