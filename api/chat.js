@@ -27,15 +27,15 @@ export default async function handler(req, res) {
             });
         }
 
-        // Gemini API
+        // Gemini 3.5 Flash
         const response = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
-            encodeURIComponent(apiKey),
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
             {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": apiKey
                 },
 
                 body: JSON.stringify({
@@ -50,14 +50,12 @@ export default async function handler(req, res) {
                                 }
                             ]
                         }
-                    ],
-                    generationConfig: {
-                        temperature: 0.7
-                    }
+                    ]
                 })
             }
         );
 
+        // Read response
         const data = await response.json();
 
         // Gemini API error
@@ -75,7 +73,7 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get Gemini reply
+        // Get AI reply
         const reply =
             data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
