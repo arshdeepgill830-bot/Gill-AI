@@ -335,55 +335,80 @@ if (imageBtn) {
     );
 
 }
+  // ==================================================
+// ---------- AI VIDEO — 20 SECOND ------------------
+// ==================================================
 
-
-// ---------- AI Video ----------
 if (videoBtn) {
+    videoBtn.addEventListener("click", async function () {
 
-    videoBtn.addEventListener(
-        "click",
-        function () {
+        const videoPrompt = window.prompt(
+            "🎬 20 सेकंड की Video बनानी है। Prompt लिखें:"
+        );
 
-            const videoPrompt =
-                window.prompt(
-                    "🎬 कौन-सी Video बनानी है?"
+        if (!videoPrompt || !videoPrompt.trim()) return;
+
+        addMessage("🎬 " + videoPrompt, "user");
+        showTyping();
+
+        try {
+            const response = await fetch("/api/video", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    prompt: videoPrompt.trim(),
+                    duration: 20,
+                    aspectRatio: "9:16"
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Video generation failed."
                 );
+            }
 
-            if (!videoPrompt) return;
+            hideTyping();
+
+            if (data.videoUrl) {
+                addMessage(
+                    "🎥 <b>Video Ready!</b><br><br>" +
+                    '<video controls playsinline style="width:100%;max-width:400px;border-radius:12px;">' +
+                    '<source src="' + data.videoUrl + '" type="video/mp4">' +
+                    "</video>",
+                    "ai"
+                );
+            } else {
+                addMessage(
+                    "⏳ <b>Video Generation Started!</b><br><br>" +
+                    "Prediction ID: " +
+                    (data.predictionId || " मिला नहीं"),
+                    "ai"
+                );
+            }
+
+            saveHistory(
+                videoPrompt,
+                "20 Second Video Request"
+            );
+
+        } catch (error) {
+
+            hideTyping();
 
             addMessage(
-                "🎬 " + videoPrompt,
-                "user"
+                "❌ Video Error: " + error.message,
+                "ai"
             );
 
-            showTyping();
-
-            setTimeout(
-                function () {
-
-                    hideTyping();
-
-                    addMessage(
-                        "🎥 Video Request तैयार है।<br><br>" +
-                        "Prompt:<br>" +
-                        videoPrompt +
-                        "<br><br>⚠️ अभी Video API Connect नहीं है।",
-                        "ai"
-                    );
-
-                    saveHistory(
-                        videoPrompt,
-                        "Video Request"
-                    );
-
-                },
-                1000
-            );
-
+            console.error("Video Error:", error);
         }
-    );
-
-}
+    });
+}               
 
 
 // ---------- Video Editor ----------
