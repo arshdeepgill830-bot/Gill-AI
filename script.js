@@ -1,4 +1,15 @@
-// ---------- Elements ----------
+/* =========================================================
+   Gill AI Ultimate v8
+   SCRIPT.JS — PART 1/5
+   CORE + CHAT + VOICE + HISTORY
+========================================================= */
+
+"use strict";
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
 const chatBox = document.getElementById("chatBox");
 const userInput = document.getElementById("userInput");
 
@@ -11,689 +22,1260 @@ const editorBtn = document.getElementById("editorBtn");
 
 const historyBtn = document.getElementById("historyBtn");
 const settingsBtn = document.getElementById("settingsBtn");
-const imageUploadBtn = document.getElementById("imageUploadBtn");
+
+const imageUploadBtn =
+    document.getElementById("imageUploadBtn");
 
 
-// ---------- App ----------
+/* =========================================================
+   APP CONFIG
+========================================================= */
+
 const APP_NAME = "Gill AI Ultimate";
 const APP_VERSION = "v8";
 
+const FREE_CHAT_LIMIT = 20;
 
-// ---------- History ----------
-let chatHistory = JSON.parse(
-    localStorage.getItem("gillHistory") || "[]"
-);
+const FREE_CHAT_PERIOD =
+    48 * 60 * 60 * 1000;
 
 
-// ---------- Add Message ----------
-function addMessage(text, type) {
+/* =========================================================
+   CHAT USAGE
+========================================================= */
 
-    if (!chatBox) return;
+let chatUsage = null;
 
-    const div = document.createElement("div");
+try {
 
-    div.className = "message " + type;
+    chatUsage = JSON.parse(
+        localStorage.getItem(
+            "gillChatUsage"
+        ) || "null"
+    );
 
-    div.innerHTML = String(text).replace(/\n/g, "<br>");
+} catch (error) {
 
-    chatBox.appendChild(div);
+    console.error(
+        "Chat usage load error:",
+        error
+    );
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+    chatUsage = null;
 }
 
 
-// ---------- Welcome ----------
-window.addEventListener("load", function () {
+/* =========================================================
+   GET CHAT USAGE
+========================================================= */
 
-    addMessage(
-        "👋 Welcome to <b>" +
-        APP_NAME +
-        " " +
-        APP_VERSION +
-        "</b><br><br>मैं आपकी AI Assistant हूँ।",
-        "ai"
-    );
+function getChatUsage() {
 
-});
+    const now =
+        Date.now();
 
 
-// ---------- AI API ----------
-async function aiReply(text) {
+    if (
+        !chatUsage ||
+        !chatUsage.startedAt ||
+        now - chatUsage.startedAt >=
+        FREE_CHAT_PERIOD
+    ) {
 
-    const response = await fetch("/api/chat", {
+        chatUsage = {
 
-        method: "POST",
+            count: 0,
 
-        headers: {
-            "Content-Type": "application/json"
-        },
+            startedAt:
+                now
 
-        body: JSON.stringify({
-            message: text
-        })
+        };
 
-    });
 
-    const data = await response.json();
+        localStorage.setItem(
 
-    if (!response.ok) {
+            "gillChatUsage",
 
-        throw new Error(
-            data.error || "AI request failed"
+            JSON.stringify(
+                chatUsage
+            )
+
         );
 
     }
 
-    return data.reply;
+
+    return chatUsage;
 }
 
 
-// ---------- Save History ----------
-function saveHistory(user, ai) {
+/* =========================================================
+   REMAINING CHATS
+========================================================= */
 
-    chatHistory.push({
+function getRemainingChats() {
 
-        user: user,
-        ai: ai,
-        time: new Date().toLocaleString()
+    return Math.max(
 
-    });
+        0,
 
-    localStorage.setItem(
-        "gillHistory",
-        JSON.stringify(chatHistory)
+        FREE_CHAT_LIMIT -
+        getChatUsage().count
+
     );
 }
 
 
-// ---------- Typing ----------
-function showTyping() {
+/* =========================================================
+   USE CHAT CREDIT
+========================================================= */
 
-    if (!chatBox) return;
+function useChatCredit() {
 
-    if (document.getElementById("typing")) return;
+    const usage =
+        getChatUsage();
 
-    const typing =
-        document.createElement("div");
 
-    typing.id = "typing";
+    usage.count++;
 
-    typing.className = "message ai";
 
-    typing.innerHTML = "🤖 Typing...";
+    localStorage.setItem(
 
-    chatBox.appendChild(typing);
+        "gillChatUsage",
+
+        JSON.stringify(
+            usage
+        )
+
+    );
+
+
+    updateCreditUI();
+}
+
+
+/* =========================================================
+   CAN SEND CHAT
+========================================================= */
+
+function canSendChat() {
+
+    if (
+        getRemainingChats() <= 0
+    ) {
+
+        addMessage(
+
+            "⏳ <b>Free Chat Limit पूरी हो गई</b><br><br>" +
+
+            "आपके " +
+            FREE_CHAT_LIMIT +
+            " free chats इस्तेमाल हो चुके हैं।<br><br>" +
+
+            "🔓 48 घंटे बाद credits reset होंगे।",
+
+            "ai"
+
+        );
+
+        return false;
+    }
+
+
+    return true;
+}
+
+
+/* =========================================================
+   CREDIT UI
+========================================================= */
+
+function updateCreditUI() {
+
+    const remaining =
+        getRemainingChats();
+
+
+    const creditDisplay =
+        document.getElementById(
+            "creditDisplay"
+        );
+
+
+    const freeCredits =
+        document.getElementById(
+            "freeCredits"
+        );
+
+
+    if (
+        creditDisplay
+    ) {
+
+        creditDisplay.textContent =
+
+            "💎 Free Credits: " +
+            remaining;
+
+    }
+
+
+    if (
+        freeCredits
+    ) {
+
+        freeCredits.textContent =
+            remaining;
+
+    }
+}
+
+
+/* =========================================================
+   HTML SECURITY
+========================================================= */
+
+function escapeHTML(value) {
+
+    return String(value)
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   ADD MESSAGE
+========================================================= */
+
+function addMessage(
+    text,
+    type = "ai"
+) {
+
+    if (!chatBox) {
+
+        console.error(
+            "chatBox element नहीं मिला।"
+        );
+
+        return;
+    }
+
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+
+    div.className =
+        "message " +
+        type;
+
+
+    div.innerHTML =
+        String(text).replace(
+            /\n/g,
+            "<br>"
+        );
+
+
+    chatBox.appendChild(
+        div
+    );
+
 
     chatBox.scrollTop =
         chatBox.scrollHeight;
+
 }
 
+
+/* =========================================================
+   TYPING INDICATOR
+========================================================= */
+
+function showTyping() {
+
+    if (!chatBox) {
+        return;
+    }
+
+
+    if (
+        document.getElementById(
+            "typing"
+        )
+    ) {
+
+        return;
+    }
+
+
+    const typing =
+        document.createElement(
+            "div"
+        );
+
+
+    typing.id =
+        "typing";
+
+
+    typing.className =
+        "message ai";
+
+
+    typing.innerHTML =
+        "🤖 Typing...";
+
+
+    chatBox.appendChild(
+        typing
+    );
+
+
+    chatBox.scrollTop =
+        chatBox.scrollHeight;
+
+}
+
+
+/* =========================================================
+   HIDE TYPING
+========================================================= */
 
 function hideTyping() {
 
     const typing =
-        document.getElementById("typing");
+        document.getElementById(
+            "typing"
+        );
+
 
     if (typing) {
+
         typing.remove();
+
     }
+
 }
 
 
-// ---------- Send ----------
+/* =========================================================
+   CHAT HISTORY
+========================================================= */
+
+let chatHistory = [];
+
+
+try {
+
+    chatHistory =
+        JSON.parse(
+
+            localStorage.getItem(
+                "gillHistory"
+            ) || "[]"
+
+        );
+
+
+    if (
+        !Array.isArray(
+            chatHistory
+        )
+    ) {
+
+        chatHistory = [];
+
+    }
+
+} catch (error) {
+
+    console.error(
+        "History load error:",
+        error
+    );
+
+    chatHistory = [];
+
+}
+
+
+/* =========================================================
+   SAVE HISTORY
+========================================================= */
+
+function saveHistory(
+    user,
+    ai
+) {
+
+    chatHistory.push({
+
+        user:
+            String(user),
+
+        ai:
+            String(ai),
+
+        time:
+            new Date()
+                .toLocaleString()
+
+    });
+
+
+    if (
+        chatHistory.length > 100
+    ) {
+
+        chatHistory =
+            chatHistory.slice(
+                -100
+            );
+
+    }
+
+
+    localStorage.setItem(
+
+        "gillHistory",
+
+        JSON.stringify(
+            chatHistory
+        )
+
+    );
+
+}
+
+
+/* =========================================================
+   SHOW HISTORY
+========================================================= */
+
+function showHistory() {
+
+    if (!chatBox) {
+        return;
+    }
+
+
+    if (
+        chatHistory.length === 0
+    ) {
+
+        addMessage(
+
+            "📂 <b>कोई Chat History नहीं है।</b>",
+
+            "ai"
+
+        );
+
+        return;
+    }
+
+
+    addMessage(
+
+        "📚 <b>Chat History</b>",
+
+        "ai"
+
+    );
+
+
+    chatHistory
+        .slice()
+        .reverse()
+        .forEach(
+            function(item) {
+
+                addMessage(
+
+                    "<b>👤 You:</b><br>" +
+
+                    escapeHTML(
+                        item.user
+                    ) +
+
+                    "<br><br>" +
+
+                    "<b>🤖 Gill AI:</b><br>" +
+
+                    escapeHTML(
+                        item.ai
+                    ) +
+
+                    "<br><br>" +
+
+                    "🕒 " +
+
+                    escapeHTML(
+                        item.time
+                    ),
+
+                    "ai"
+
+                );
+
+            }
+        );
+
+}
+
+
+/* =========================================================
+   GLOBAL FUNCTIONS
+========================================================= */
+
+window.showHistory =
+    showHistory;
+
+
+window.addMessage =
+    addMessage;
+
+
+/* =========================================================
+   AI CHAT API
+========================================================= */
+
+async function aiReply(
+    text
+) {
+
+    const response =
+        await fetch(
+
+            "/api/chat",
+
+            {
+
+                method:
+                    "POST",
+
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json"
+
+                },
+
+
+                body:
+                    JSON.stringify({
+
+                        message:
+                            text
+
+                    })
+
+            }
+
+        );
+
+
+    const raw =
+        await response.text();
+
+
+    let data;
+
+
+    try {
+
+        data =
+            JSON.parse(
+                raw
+            );
+
+    } catch (error) {
+
+        console.error(
+            "AI API raw response:",
+            raw
+        );
+
+
+        throw new Error(
+
+            "AI server ने valid JSON नहीं भेजा। /api/chat check करें।"
+
+        );
+
+    }
+
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+
+            data?.error ||
+            "AI request failed."
+
+        );
+
+    }
+
+
+    if (
+        !data.reply
+    ) {
+
+        throw new Error(
+
+            "AI ने कोई reply नहीं दिया।"
+
+        );
+
+    }
+
+
+    return data.reply;
+
+}
+
+
+/* =========================================================
+   SEND MESSAGE
+========================================================= */
+
 async function sendMessage() {
 
-    if (!userInput) return;
+    if (!userInput) {
+
+        console.error(
+            "userInput element नहीं मिला।"
+        );
+
+        return;
+    }
+
 
     const text =
         userInput.value.trim();
 
-    if (text === "") return;
+
+    if (!text) {
+
+        return;
+    }
+
+
+    if (
+        !canSendChat()
+    ) {
+
+        return;
+    }
+
+
+    useChatCredit();
+
 
     addMessage(
-        text,
+
+        escapeHTML(
+            text
+        ),
+
         "user"
+
     );
 
-    userInput.value = "";
+
+    userInput.value =
+        "";
+
 
     showTyping();
+
 
     try {
 
         const reply =
-            await aiReply(text);
+            await aiReply(
+                text
+            );
+
 
         hideTyping();
 
+
         addMessage(
+
             reply,
+
             "ai"
+
         );
 
+
         saveHistory(
+
             text,
+
             reply
+
         );
+
+
+        addMessage(
+
+            "ℹ️ Free Chats बाकी: <b>" +
+
+            getRemainingChats() +
+
+            "/" +
+
+            FREE_CHAT_LIMIT +
+
+            "</b>",
+
+            "ai"
+
+        );
+
 
     } catch (error) {
 
         hideTyping();
 
+
         addMessage(
+
             "❌ AI Error: " +
-            error.message,
+
+            escapeHTML(
+                error.message
+            ),
+
             "ai"
+
         );
 
+
         console.error(
-            "Gill AI Error:",
+
+            "Gill AI Chat Error:",
+
             error
+
         );
 
     }
+
 }
 
 
-// ---------- Send Button ----------
+/* =========================================================
+   SEND BUTTON
+========================================================= */
+
 if (sendBtn) {
 
     sendBtn.addEventListener(
+
         "click",
+
         sendMessage
+
     );
 
 }
 
 
-// ---------- Enter ----------
+/* =========================================================
+   ENTER KEY
+========================================================= */
+
 if (userInput) {
 
     userInput.addEventListener(
+
         "keydown",
-        function (e) {
 
-            if (e.key === "Enter") {
+        function(event) {
 
-                e.preventDefault();
+            if (
+                event.key === "Enter"
+            ) {
+
+                event.preventDefault();
 
                 sendMessage();
 
             }
 
         }
+
     );
 
 }
 
 
-// ---------- Voice ----------
+/* =========================================================
+   VOICE INPUT
+========================================================= */
+
 if (voiceBtn) {
 
     voiceBtn.addEventListener(
-        "click",
-        function () {
 
-            if (
-                !("webkitSpeechRecognition" in window)
-            ) {
+        "click",
+
+        function() {
+
+            const SpeechRecognition =
+
+                window.SpeechRecognition ||
+                window.webkitSpeechRecognition;
+
+
+            if (!SpeechRecognition) {
 
                 alert(
-                    "❌ Voice Recognition Support नहीं है।"
+
+                    "❌ इस browser में Voice Recognition available नहीं है।"
+
                 );
 
                 return;
             }
 
+
             const recognition =
-                new webkitSpeechRecognition();
+
+                new SpeechRecognition();
+
 
             recognition.lang =
                 "hi-IN";
 
+
             recognition.interimResults =
                 false;
+
 
             recognition.maxAlternatives =
                 1;
 
+
+            recognition.onstart =
+
+                function() {
+
+                    addMessage(
+
+                        "🎤 सुन रहा हूँ...",
+
+                        "ai"
+
+                    );
+
+                };
+
+
             recognition.onresult =
-                function (e) {
+
+                function(event) {
+
+                    const transcript =
+
+                        event.results[0][0]
+                            .transcript;
+
 
                     if (userInput) {
 
                         userInput.value =
-                            e.results[0][0]
-                            .transcript;
+                            transcript;
+
+
+                        userInput.focus();
 
                     }
 
                 };
 
+
             recognition.onerror =
-                function (e) {
+
+                function(event) {
 
                     console.error(
+
                         "Voice Error:",
-                        e.error
+
+                        event.error
+
+                    );
+
+
+                    addMessage(
+
+                        "❌ Voice input में समस्या हुई।",
+
+                        "ai"
+
                     );
 
                 };
 
-            recognition.start();
 
-        }
-    );
+            recognition.onend =
 
-}
+                function() {
+
+                    console.log(
+
+                        "Voice recognition ended."
+
+                    );
+
+                };
 
 
-// ---------- AI Image ----------
-if (imageBtn) {
+            try {
 
-    imageBtn.addEventListener(
-        "click",
-        function () {
+                recognition.start();
 
-            const imagePrompt =
-                window.prompt(
-                    "🎨 कौन-सी Image बनानी है?"
+            } catch (error) {
+
+                console.error(
+
+                    "Voice Start Error:",
+
+                    error
+
                 );
 
-            if (!imagePrompt) return;
-
-            addMessage(
-                "🎨 " + imagePrompt,
-                "user"
-            );
-
-            showTyping();
-
-            setTimeout(
-                function () {
-
-                    hideTyping();
-
-                    addMessage(
-                        "🖼️ Image Request तैयार है।<br><br>" +
-                        "Prompt:<br>" +
-                        imagePrompt +
-                        "<br><br>⚠️ अभी Image API Connect नहीं है।",
-                        "ai"
-                    );
-
-                    saveHistory(
-                        imagePrompt,
-                        "Image Request"
-                    );
-
-                },
-                800
-            );
+            }
 
         }
+
     );
 
 }
-  // ==================================================
-// ---------- AI VIDEO — 20 SECOND ------------------
-// ==================================================
 
-if (videoBtn) {
-    videoBtn.addEventListener("click", async function () {
 
-        const videoPrompt = window.prompt(
-            "🎬 20 सेकंड की Video बनानी है। Prompt लिखें:"
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+getChatUsage();
+
+updateCreditUI();
+
+
+console.log(
+
+    APP_NAME +
+    " " +
+    APP_VERSION +
+    " loaded successfully."
+
+);
+
+
+/* =========================================================
+   PART 1/5 END
+========================================================= */
+/* =========================================================
+   Gill AI Ultimate v8
+   SCRIPT.JS — PART 2/5
+   AI VIDEO + VIDEO HISTORY + VIDEO STATUS
+========================================================= */
+
+
+/* =========================================================
+   VIDEO ELEMENTS
+========================================================= */
+
+const videoPreview =
+    document.getElementById("videoPreview");
+
+const generateVideoBtn =
+    document.getElementById("generateVideoBtn");
+
+const videoPrompt =
+    document.getElementById("videoPrompt");
+
+const videoAspectRatio =
+    document.getElementById("videoAspectRatio");
+
+
+/* =========================================================
+   VIDEO HISTORY
+========================================================= */
+
+let videoHistory = [];
+
+try {
+
+    videoHistory = JSON.parse(
+        localStorage.getItem(
+            "gillVideoHistory"
+        ) || "[]"
+    );
+
+    if (!Array.isArray(videoHistory)) {
+        videoHistory = [];
+    }
+
+} catch (error) {
+
+    console.error(
+        "Video history load error:",
+        error
+    );
+
+    videoHistory = [];
+}
+
+
+/* =========================================================
+   SAVE VIDEO HISTORY
+========================================================= */
+
+function saveVideoHistory(
+    prompt,
+    videoUrl
+) {
+
+    videoHistory.push({
+
+        prompt: String(prompt),
+
+        videoUrl: String(videoUrl),
+
+        time:
+            new Date().toLocaleString()
+
+    });
+
+    if (videoHistory.length > 50) {
+
+        videoHistory =
+            videoHistory.slice(-50);
+    }
+
+    localStorage.setItem(
+        "gillVideoHistory",
+        JSON.stringify(videoHistory)
+    );
+}
+
+
+/* =========================================================
+   SHOW VIDEO HISTORY
+========================================================= */
+
+function showVideoHistory() {
+
+    if (!chatBox) {
+        return;
+    }
+
+    if (videoHistory.length === 0) {
+
+        addMessage(
+            "🎬 <b>अभी कोई Video History नहीं है।</b>",
+            "ai"
         );
 
-        if (!videoPrompt || !videoPrompt.trim()) return;
+        return;
+    }
 
-        addMessage("🎬 " + videoPrompt, "user");
-        showTyping();
+    addMessage(
+        "🎬 <b>Video History</b>",
+        "ai"
+    );
+
+    videoHistory
+        .slice()
+        .reverse()
+        .forEach(function(item) {
+
+            const safePrompt =
+                escapeHTML(item.prompt);
+
+            const safeUrl =
+                escapeHTML(item.videoUrl);
+
+            addMessage(
+
+                "<b>📝 Prompt:</b><br>" +
+                safePrompt +
+
+                "<br><br>🕒 " +
+                escapeHTML(item.time) +
+
+                "<br><br>" +
+
+                '<a href="' +
+                safeUrl +
+                '" target="_blank" rel="noopener">' +
+
+                "▶️ Video Open करें" +
+
+                "</a>",
+
+                "ai"
+            );
+
+        });
+}
+
+
+window.showVideoHistory =
+    showVideoHistory;
+
+
+/* =========================================================
+   GENERATE VIDEO
+========================================================= */
+
+async function generateVideo(
+    prompt,
+    aspectRatio = "9:16"
+) {
+
+    const cleanPrompt =
+        String(prompt || "").trim();
+
+    if (!cleanPrompt) {
+
+        addMessage(
+            "❌ Video prompt खाली है।",
+            "ai"
+        );
+
+        return;
+    }
+
+    showTyping();
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/video",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            prompt:
+                                cleanPrompt,
+
+                            aspectRatio:
+                                aspectRatio
+
+                        })
+                }
+            );
+
+        const raw =
+            await response.text();
+
+        let data;
 
         try {
-            const response = await fetch("/api/video", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    prompt: videoPrompt.trim(),
-                    duration: 20,
-                    aspectRatio: "9:16"
-                })
-            });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.error || "Video generation failed."
-                );
-            }
-
-            hideTyping();
-
-            if (data.videoUrl) {
-                addMessage(
-                    "🎥 <b>Video Ready!</b><br><br>" +
-                    '<video controls playsinline style="width:100%;max-width:400px;border-radius:12px;">' +
-                    '<source src="' + data.videoUrl + '" type="video/mp4">' +
-                    "</video>",
-                    "ai"
-                );
-            } else {
-                addMessage(
-                    "⏳ <b>Video Generation Started!</b><br><br>" +
-                    "Prediction ID: " +
-                    (data.predictionId || " मिला नहीं"),
-                    "ai"
-                );
-            }
-
-            saveHistory(
-                videoPrompt,
-                "20 Second Video Request"
-            );
+            data =
+                JSON.parse(raw);
 
         } catch (error) {
 
-            hideTyping();
-
-            addMessage(
-                "❌ Video Error: " + error.message,
-                "ai"
+            console.error(
+                "Video API Raw Response:",
+                raw
             );
 
-            console.error("Video Error:", error);
-        }
-    });
-}               
-
-
-// ---------- Video Editor ----------
-if (editorBtn) {
-
-    editorBtn.addEventListener(
-        "click",
-        function () {
-
-            addMessage(
-                "✂️ <b>Video Editor</b><br><br>" +
-                "• Trim<br>" +
-                "• Crop<br>" +
-                "• Merge<br>" +
-                "• Add Music<br>" +
-                "• Filters<br><br>" +
-                "जल्द उपलब्ध होगा।",
-                "ai"
+            throw new Error(
+                "Video server ने valid JSON नहीं भेजा। /api/video check करें।"
             );
-
         }
-    );
 
-}
+        hideTyping();
 
+        if (!response.ok) {
 
-// ---------- Image Upload ----------
-if (imageUploadBtn) {
-
-    imageUploadBtn.addEventListener(
-        "click",
-        function () {
-
-            alert(
-                "🖼️ Image Upload Feature जल्द उपलब्ध होगा।"
+            throw new Error(
+                data?.error ||
+                "Video generation failed."
             );
-
         }
-    );
-
-}
 
 
-// ---------- History ----------
-if (historyBtn) {
+        /* =================================================
+           DIRECT VIDEO URL
+        ================================================= */
 
-    historyBtn.addEventListener(
-        "click",
-        function () {
+        if (data.videoUrl) {
 
-            if (chatHistory.length === 0) {
-
-                alert(
-                    "📂 कोई Chat History नहीं मिली।"
-                );
-
-                return;
-            }
-
-            let historyText = "";
-
-            chatHistory.forEach(
-                function (item, index) {
-
-                    historyText +=
-                        "----------------------\n" +
-                        (index + 1) + ".\n" +
-                        "👤 " + item.user + "\n" +
-                        "🤖 " + item.ai + "\n" +
-                        "🕒 " + item.time + "\n\n";
-
-                }
-            );
-
-            alert(historyText);
-
-        }
-    );
-
-}
-
-
-// ---------- Settings ----------
-if (settingsBtn) {
-
-    settingsBtn.addEventListener(
-        "click",
-        function () {
-
-            const option =
-                window.prompt(
-`⚙️ Gill AI Settings
-
-1 = App Info
-2 = Clear History
-3 = Clear Chat`
-                );
-
-            if (option === "1") {
-
-                alert(
-`🤖 Gill AI Ultimate v8
-
-Status : Ready
-Theme : Dark
-History : Enabled
-Voice : Enabled`
-                );
-
-            }
-
-            else if (option === "2") {
-
-                localStorage.removeItem(
-                    "gillHistory"
-                );
-
-                chatHistory = [];
-
-                alert(
-                    "✅ History Delete हो गई।"
-                );
-
-            }
-
-            else if (option === "3") {
-
-                if (chatBox) {
-
-                    chatBox.innerHTML = "";
-
-                    addMessage(
-                        "👋 Chat Clear हो गई।",
-                        "ai"
-                    );
-
-                }
-
-            }
-
-        }
-    );
-
-}
-
-
-// ---------- Theme ----------
-let currentTheme =
-    localStorage.getItem("gillTheme") || "dark";
-
-
-function applyTheme() {
-
-    if (
-        currentTheme === "light"
-    ) {
-
-        document.body.classList.add(
-            "light"
-        );
-
-    } else {
-
-        document.body.classList.remove(
-            "light"
-        );
-
-    }
-
-}
-
-applyTheme();
-
-
-// ---------- Internet ----------
-window.addEventListener(
-    "online",
-    function () {
-
-        addMessage(
-            "🟢 Internet Connected",
-            "ai"
-        );
-
-    }
-);
-
-
-window.addEventListener(
-    "offline",
-    function () {
-
-        addMessage(
-            "🔴 Internet Disconnected",
-            "ai"
-        );
-
-    }
-);
-
-
-// ---------- Export History ----------
-window.exportHistory =
-    function () {
-
-        if (chatHistory.length === 0) {
-
-            alert(
-                "📂 No History Found"
+            showGeneratedVideo(
+                data.videoUrl,
+                cleanPrompt
             );
 
             return;
         }
 
-        const data =
-            JSON.stringify(
-                chatHistory,
-                null,
-                2
+
+        /* =================================================
+           PREDICTION ID
+        ================================================= */
+
+        if (data.predictionId) {
+
+            addMessage(
+
+                "⏳ <b>Video Generate हो रही है...</b><br><br>" +
+                "Video तैयार होने तक कृपया इंतज़ार करें।",
+
+                "ai"
             );
 
-        const blob =
-            new Blob(
-                [data],
-                {
-                    type:
-                        "application/json"
-                }
-            );
-
-        const url =
-            URL.createObjectURL(blob);
-
-        const a =
-            document.createElement("a");
-
-        a.href = url;
-
-        a.download =
-            "GillAI_History.json";
-
-        document.body.appendChild(a);
-
-        a.click();
-
-        document.body.removeChild(a);
-
-        URL.revokeObjectURL(url);
-
-    };
-
-
-// ---------- Restart ----------
-window.restartApp =
-    function () {
-
-        if (
-            confirm(
-                "♻️ Gill AI Restart करें?"
-            )
-        ) {
-
-            location.reload();
-
-        }
-
-    };
-
-
-// ---------- Auto Focus ----------
-window.addEventListener(
-    "load",
-    function () {
-
-        if (userInput) {
-
-            userInput.focus();
-
-        }
-
-    }
-);
-
-
-// ---------- Final ----------
-console.log(
-    "Gill AI Ultimate v8 Loaded Successfully"
-);
+            await checkVideoStatus(
+                data.predictionId,
+               
