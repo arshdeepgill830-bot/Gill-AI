@@ -1,5 +1,5 @@
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
 
     if (req.method !== "POST") {
         return res.status(405).json({
@@ -9,7 +9,8 @@ export default async function handler(req, res) {
 
     try {
 
-        const apiKey = process.env.OPENROUTER_API_KEY;
+        const apiKey =
+            process.env.OPENROUTER_API_KEY;
 
         if (!apiKey) {
             return res.status(500).json({
@@ -31,10 +32,12 @@ export default async function handler(req, res) {
                 method: "POST",
 
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`,
+                    "Authorization": "Bearer " + apiKey,
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://gill-ai.vercel.app",
-                    "X-Title": "Gill AI Ultimate"
+                    "HTTP-Referer":
+                        "https://gill-7290xzwqg-arshdeepgill830-5418s-projects.vercel.app",
+                    "X-Title":
+                        "Gill AI Ultimate"
                 },
 
                 body: JSON.stringify({
@@ -48,31 +51,30 @@ export default async function handler(req, res) {
                         },
                         {
                             role: "user",
-                            content: message
+                            content: String(message)
                         }
                     ]
                 })
             }
         );
 
-        const raw = await response.text();
+        const raw =
+            await response.text();
 
         let data;
 
         try {
-
             data = JSON.parse(raw);
-
         } catch (e) {
 
             console.error(
-                "OpenRouter non-JSON response:",
+                "OpenRouter response:",
                 raw
             );
 
             return res.status(502).json({
                 error:
-                    "OpenRouter ने valid JSON response नहीं दिया."
+                    "OpenRouter ने valid JSON नहीं दिया।"
             });
         }
 
@@ -95,11 +97,6 @@ export default async function handler(req, res) {
 
         if (!reply) {
 
-            console.error(
-                "OpenRouter response:",
-                data
-            );
-
             return res.status(500).json({
                 error:
                     "AI response unavailable"
@@ -107,7 +104,7 @@ export default async function handler(req, res) {
         }
 
         return res.status(200).json({
-            reply: reply
+            reply: String(reply)
         });
 
     } catch (error) {
@@ -118,27 +115,9 @@ export default async function handler(req, res) {
         );
 
         return res.status(500).json({
-                error:
-        "AI response unavailable"
-});
-
-}
-
-return res.status(200).json({
-    reply: reply
-});
-
-} catch (error) {
-
-    console.error(
-        "Gill AI Server Error:",
-        error
-    );
-
-    return res.status(500).json({
-        error:
-            error?.message ||
-            "Server Error"
-    });
-}
-                            }
+            error:
+                error?.message ||
+                "Server Error"
+        });
+    }
+};
