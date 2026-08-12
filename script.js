@@ -1089,6 +1089,7 @@ function saveVideoHistory(
 
         videoHistory =
             videoHistory.slice(-50);
+
     }
 
     localStorage.setItem(
@@ -1278,4 +1279,2003 @@ async function generateVideo(
 
             await checkVideoStatus(
                 data.predictionId,
-               
+                cleanPrompt
+            );
+
+            return;
+        }
+
+
+        throw new Error(
+            "Prediction ID या Video URL नहीं मिली।"
+        );
+
+    } catch (error) {
+
+        hideTyping();
+
+        addMessage(
+
+            "❌ Video Error: " +
+            escapeHTML(error.message),
+
+            "ai"
+        );
+
+        console.error(
+            "Gill AI Video Error:",
+            error
+        );
+    }
+}
+
+
+window.generateVideo =
+    generateVideo;
+
+
+/* =========================================================
+   VIDEO BUTTON
+========================================================= */
+
+if (videoBtn) {
+
+    videoBtn.addEventListener(
+        "click",
+        function () {
+
+            const prompt =
+                window.prompt(
+                    "🎬 Video बनाने के लिए Prompt लिखें:"
+                );
+
+            if (
+                !prompt ||
+                !prompt.trim()
+            ) {
+                return;
+            }
+
+            generateVideo(
+                prompt.trim(),
+                "9:16"
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   VIDEO STUDIO GENERATE BUTTON
+========================================================= */
+
+if (generateVideoBtn) {
+
+    generateVideoBtn.addEventListener(
+        "click",
+        function () {
+
+            const promptInput =
+                document.getElementById(
+                    "videoPrompt"
+                );
+
+            const ratioInput =
+                document.getElementById(
+                    "videoAspectRatio"
+                );
+
+            if (
+                !promptInput ||
+                !promptInput.value.trim()
+            ) {
+
+                addMessage(
+                    "❌ पहले Video Prompt लिखें।",
+                    "ai"
+                );
+
+                return;
+            }
+
+            const ratio =
+                ratioInput
+                    ? ratioInput.value
+                    : "9:16";
+
+            generateVideo(
+                promptInput.value.trim(),
+                ratio
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   SHOW GENERATED VIDEO
+========================================================= */
+
+function showGeneratedVideo(
+    videoUrl,
+    originalPrompt
+) {
+
+    if (!videoUrl) {
+        return;
+    }
+
+    const safeUrl =
+        escapeHTML(
+            String(videoUrl)
+        );
+
+    const videoHTML =
+
+        '<video ' +
+        'controls ' +
+        'playsinline ' +
+        'preload="metadata" ' +
+
+        'style="' +
+        'width:100%;' +
+        'max-width:700px;' +
+        'border-radius:16px;' +
+        'display:block;' +
+        'margin-top:8px;' +
+        '">' +
+
+        '<source src="' +
+        safeUrl +
+        '" type="video/mp4">' +
+
+        'आपका browser video support नहीं करता।' +
+
+        '</video>';
+
+
+    if (videoPreview) {
+
+        videoPreview.innerHTML =
+            videoHTML;
+    }
+
+
+    addMessage(
+
+        "🎥 <b>Video Ready!</b><br><br>" +
+
+        videoHTML +
+
+        "<br><br>" +
+
+        '<a href="' +
+        safeUrl +
+        '" target="_blank" rel="noopener">' +
+
+        "▶️ Video Open करें" +
+
+        "</a>",
+
+        "ai"
+    );
+
+
+    saveVideoHistory(
+        originalPrompt,
+        videoUrl
+    );
+}
+
+
+/* =========================================================
+   CHECK VIDEO STATUS
+========================================================= */
+
+async function checkVideoStatus(
+    predictionId,
+    originalPrompt
+) {
+
+    if (!predictionId) {
+
+        addMessage(
+            "❌ Video Prediction ID नहीं मिली।",
+            "ai"
+        );
+
+        return;
+    }
+
+
+    let attempts = 0;
+
+    const maxAttempts = 60;
+
+
+    const check = async function () {
+
+        attempts++;
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/video-status?id=" +
+                    encodeURIComponent(
+                        predictionId
+                    ),
+                    {
+                        method: "GET"
+                    }
+                );
+
+
+            const raw =
+                await response.text();
+
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(raw);
+
+            } catch (error) {
+
+                console.error(
+                    "Video Status Raw:",
+                    raw
+                );
+
+                throw new Error(
+                    "Video status server ने valid JSON नहीं भेजा।"
+                );
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+
+                    data?.error ||
+                    "Video status check failed."
+
+                );
+            }
+
+
+            /* =========================================
+               VIDEO READY
+            ========================================= */
+
+            if (data.videoUrl) {
+
+                showGeneratedVideo(
+
+                    data.videoUrl,
+
+                    originalPrompt
+
+                );
+
+                return;
+            }
+
+
+            /* =========================================
+               STATUS
+            ========================================= */
+
+            const status =
+                String(
+                    data.status || ""
+                ).toLowerCase();
+
+
+            /* =========================================
+               SUCCESS
+            ========================================= */
+
+            if (
+                status === "succeeded" ||
+                status === "completed" ||
+                status === "complete"
+            ) {
+
+                const finalVideoUrl =
+                    data.videoUrl ||
+                    data.output;
+
+                if (finalVideoUrl) {
+
+                    showGeneratedVideo(
+
+                        finalVideoUrl,
+
+                        originalPrompt
+
+                    );
+
+                    return;
+                }
+
+                addMessage(
+
+                    "⚠️ Video complete हुई लेकिन URL नहीं मिली।",
+
+                    "ai"
+                );
+
+                return;
+            }
+
+
+            /* =========================================
+               FAILED
+            ========================================= */
+
+            if (
+                status === "failed" ||
+                status === "error" ||
+                status === "canceled" ||
+                status === "cancelled"
+            ) {
+
+                addMessage(
+
+                    "❌ Video Generate नहीं हो पाई।<br><br>" +
+
+                    escapeHTML(
+                        data.error ||
+                        "Unknown video error."
+                    ),
+
+                    "ai"
+                );
+
+                return;
+            }
+
+
+            /* =========================================
+               MAX ATTEMPTS
+            ========================================= */
+
+            if (
+                attempts >= maxAttempts
+            ) {
+
+                addMessage(
+
+                    "⏳ Video अभी तैयार नहीं हुई।<br><br>" +
+
+                    "बाद में फिर check करें।",
+
+                    "ai"
+                );
+
+                return;
+            }
+
+
+            /* =========================================
+               PROCESSING
+            ========================================= */
+
+            console.log(
+                "Video processing:",
+                attempts,
+                "/",
+                maxAttempts
+            );
+
+
+            setTimeout(
+                check,
+                5000
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Video Status Error:",
+                error
+            );
+
+
+            if (
+                attempts < maxAttempts
+            ) {
+
+                setTimeout(
+                    check,
+                    5000
+                );
+
+            } else {
+
+                addMessage(
+
+                    "❌ Video Status Error: " +
+
+                    escapeHTML(
+                        error.message
+                    ),
+
+                    "ai"
+                );
+            }
+        }
+    };
+
+
+    check();
+}
+
+
+window.checkVideoStatus =
+    checkVideoStatus;
+
+
+/* =========================================================
+   PART 2/5 END
+========================================================= */
+/* =========================================================
+   Gill AI Ultimate v8
+   SCRIPT.JS — PART 3/5
+   VIDEO STATUS + BUTTONS + IMAGE UPLOAD
+========================================================= */
+
+
+/* =========================================================
+   CHECK VIDEO STATUS
+========================================================= */
+
+async function checkVideoStatus(
+    predictionId,
+    originalPrompt
+) {
+
+    if (!predictionId) {
+
+        addMessage(
+            "❌ Video Prediction ID नहीं मिली।",
+            "ai"
+        );
+
+        return;
+    }
+
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    const check = async function () {
+
+        attempts++;
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/video-status?id=" +
+                    encodeURIComponent(
+                        predictionId
+                    )
+                );
+
+            const raw =
+                await response.text();
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(raw);
+
+            } catch (error) {
+
+                console.error(
+                    "Video Status Raw:",
+                    raw
+                );
+
+                throw new Error(
+                    "Video status server ने valid JSON नहीं भेजा।"
+                );
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data?.error ||
+                    "Video status check failed."
+                );
+            }
+
+
+            /* =================================================
+               VIDEO READY
+            ================================================= */
+
+            if (data.videoUrl) {
+
+                showGeneratedVideo(
+                    data.videoUrl,
+                    originalPrompt
+                );
+
+                return;
+            }
+
+
+            /* =================================================
+               STATUS
+            ================================================= */
+
+            const status =
+                String(
+                    data.status || ""
+                ).toLowerCase();
+
+
+            if (
+                status === "succeeded" ||
+                status === "completed" ||
+                status === "complete"
+            ) {
+
+                const finalUrl =
+                    data.videoUrl ||
+                    data.output;
+
+                if (finalUrl) {
+
+                    showGeneratedVideo(
+                        finalUrl,
+                        originalPrompt
+                    );
+
+                    return;
+                }
+            }
+
+
+            /* =================================================
+               FAILED
+            ================================================= */
+
+            if (
+                status === "failed" ||
+                status === "error" ||
+                status === "canceled" ||
+                status === "cancelled"
+            ) {
+
+                addMessage(
+
+                    "❌ <b>Video Generate नहीं हो पाई।</b><br><br>" +
+
+                    escapeHTML(
+                        data.error ||
+                        "Unknown video error."
+                    ),
+
+                    "ai"
+                );
+
+                return;
+            }
+
+
+            /* =================================================
+               PROCESSING
+            ================================================= */
+
+            if (
+                attempts >= maxAttempts
+            ) {
+
+                addMessage(
+
+                    "⏳ Video अभी तैयार नहीं हुई।<br><br>" +
+                    "बाद में फिर से check करें।",
+
+                    "ai"
+                );
+
+                return;
+            }
+
+
+            console.log(
+                "Video processing:",
+                attempts,
+                "/",
+                maxAttempts
+            );
+
+
+            setTimeout(
+                check,
+                5000
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Video Status Error:",
+                error
+            );
+
+
+            if (
+                attempts < maxAttempts
+            ) {
+
+                setTimeout(
+                    check,
+                    5000
+                );
+
+            } else {
+
+                addMessage(
+
+                    "❌ Video Status Error: " +
+
+                    escapeHTML(
+                        error.message
+                    ),
+
+                    "ai"
+                );
+
+            }
+        }
+    };
+
+
+    check();
+}
+
+
+/* =========================================================
+   GLOBAL VIDEO STATUS
+========================================================= */
+
+window.checkVideoStatus =
+    checkVideoStatus;
+
+
+/* =========================================================
+   VIDEO BUTTON
+========================================================= */
+
+if (videoBtn) {
+
+    videoBtn.addEventListener(
+        "click",
+        function () {
+
+            const prompt =
+                window.prompt(
+                    "🎬 अपनी Video Prompt लिखें:"
+                );
+
+
+            if (
+                !prompt ||
+                !prompt.trim()
+            ) {
+
+                return;
+            }
+
+
+            generateVideo(
+                prompt.trim(),
+                "9:16"
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   VIDEO STUDIO GENERATE BUTTON
+========================================================= */
+
+if (generateVideoBtn) {
+
+    generateVideoBtn.addEventListener(
+        "click",
+        function () {
+
+            const promptInput =
+                document.getElementById(
+                    "videoPrompt"
+                );
+
+
+            const ratioInput =
+                document.getElementById(
+                    "videoAspectRatio"
+                );
+
+
+            if (
+                !promptInput ||
+                !promptInput.value.trim()
+            ) {
+
+                addMessage(
+                    "❌ पहले Video Prompt लिखें।",
+                    "ai"
+                );
+
+                return;
+            }
+
+
+            const ratio =
+                ratioInput
+                    ? ratioInput.value
+                    : "9:16";
+
+
+            generateVideo(
+                promptInput.value.trim(),
+                ratio
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   IMAGE UPLOAD BUTTON
+========================================================= */
+
+if (imageUploadBtn) {
+
+    imageUploadBtn.addEventListener(
+        "click",
+        function () {
+
+            let fileInput =
+                document.getElementById(
+                    "gillImageInput"
+                );
+
+
+            if (!fileInput) {
+
+                fileInput =
+                    document.createElement(
+                        "input"
+                    );
+
+
+                fileInput.type =
+                    "file";
+
+
+                fileInput.id =
+                    "gillImageInput";
+
+
+                fileInput.accept =
+                    "image/*";
+
+
+                fileInput.style.display =
+                    "none";
+
+
+                document.body.appendChild(
+                    fileInput
+                );
+
+
+                fileInput.addEventListener(
+                    "change",
+                    handleImageUpload
+                );
+            }
+
+
+            fileInput.click();
+
+        }
+    );
+}
+
+
+/* =========================================================
+   HANDLE IMAGE UPLOAD
+========================================================= */
+
+function handleImageUpload(event) {
+
+    const file =
+        event.target.files &&
+        event.target.files[0];
+
+
+    if (!file) {
+        return;
+    }
+
+
+    if (
+        !file.type.startsWith("image/")
+    ) {
+
+        addMessage(
+            "❌ केवल image file upload करें।",
+            "ai"
+        );
+
+        return;
+    }
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload =
+        function () {
+
+            const imageUrl =
+                reader.result;
+
+
+            const safeImage =
+                escapeHTML(
+                    String(imageUrl)
+                );
+
+
+            addMessage(
+
+                "🖼️ <b>Image Selected</b><br><br>" +
+
+                '<img src="' +
+                safeImage +
+                '" ' +
+                'style="width:100%;max-width:400px;border-radius:16px;" ' +
+                'alt="Uploaded image">',
+
+                "user"
+            );
+
+
+            addMessage(
+
+                "🤖 Image upload हो गई है।<br><br>" +
+
+                "अब आप इसके बारे में सवाल पूछ सकते हैं।",
+
+                "ai"
+            );
+
+        };
+
+
+    reader.onerror =
+        function () {
+
+            addMessage(
+                "❌ Image पढ़ने में समस्या हुई।",
+                "ai"
+            );
+
+        };
+
+
+    reader.readAsDataURL(file);
+
+
+    event.target.value = "";
+
+}
+
+
+/* =========================================================
+   IMAGE BUTTON
+========================================================= */
+
+if (imageBtn) {
+
+    imageBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "🎨 <b>AI Image</b><br><br>" +
+
+                "अपना image prompt लिखें।",
+
+                "ai"
+            );
+
+
+            if (userInput) {
+
+                userInput.focus();
+
+            }
+
+        }
+    );
+}
+
+
+/* =========================================================
+   VIDEO HISTORY BUTTON HELPER
+========================================================= */
+
+window.showVideoHistory =
+    showVideoHistory;
+
+
+/* =========================================================
+   EDITOR BUTTON
+========================================================= */
+
+if (editorBtn) {
+
+    editorBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "✂️ <b>Gill AI Video Editor</b><br><br>" +
+
+                "Video Editor module तैयार है।<br><br>" +
+
+                "🎬 Video upload और editing features यहाँ जोड़े जा सकते हैं।",
+
+                "ai"
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   HISTORY BUTTON
+========================================================= */
+
+if (historyBtn) {
+
+    historyBtn.addEventListener(
+        "click",
+        function () {
+
+            showHistory();
+
+        }
+    );
+}
+
+
+/* =========================================================
+   SETTINGS BUTTON
+========================================================= */
+
+if (settingsBtn) {
+
+    settingsBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "⚙️ <b>Gill AI Settings</b><br><br>" +
+
+                "💎 Free Chat Limit: " +
+                FREE_CHAT_LIMIT +
+
+                "<br>⏱️ Reset Period: 48 Hours" +
+
+                "<br>🤖 App Version: " +
+                APP_VERSION,
+
+                "ai"
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   PART 3/5 END
+========================================================= */
+/* =========================================================
+   Gill AI Ultimate v8
+   SCRIPT.JS — PART 4/5
+   NAVIGATION + IMAGE + UI HELPERS
+========================================================= */
+
+"use strict";
+
+/* =========================================================
+   HOME BUTTON
+========================================================= */
+
+const homeBtn =
+    document.getElementById("homeBtn");
+
+if (homeBtn) {
+
+    homeBtn.addEventListener(
+        "click",
+        function () {
+
+            if (chatBox) {
+
+                chatBox.innerHTML =
+                    '<div class="message ai">' +
+
+                    '👋 नमस्ते! मैं <b>Gill AI Ultimate v8</b> हूँ।<br><br>' +
+
+                    '🤖 AI Chat<br>' +
+                    '🎤 Voice Chat<br>' +
+                    '🎨 AI Image<br>' +
+                    '🎬 AI Video<br>' +
+                    '✂️ Video Editor<br>' +
+                    '🕒 Chat History<br>' +
+                    '⚙️ Settings<br><br>' +
+
+                    'आप क्या करना चाहते हैं?';
+
+                chatBox.scrollTop =
+                    chatBox.scrollHeight;
+            }
+
+        }
+    );
+}
+
+
+/* =========================================================
+   STUDIO BUTTON
+========================================================= */
+
+const studioBtn =
+    document.getElementById("studioBtn");
+
+if (studioBtn) {
+
+    studioBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "🎨 <b>Gill AI Studio</b><br><br>" +
+
+                "यहाँ आप AI Image और AI Video features इस्तेमाल कर सकते हैं।",
+
+                "ai"
+
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   IMAGE GENERATOR
+========================================================= */
+
+function openImageGenerator() {
+
+    const prompt =
+        window.prompt(
+            "🎨 AI Image बनाने के लिए Prompt लिखें:"
+        );
+
+    if (
+        !prompt ||
+        !prompt.trim()
+    ) {
+        return;
+    }
+
+    addMessage(
+
+        "🎨 <b>Image Prompt</b><br><br>" +
+
+        escapeHTML(
+            prompt.trim()
+        ) +
+
+        "<br><br>" +
+
+        "⏳ Image Generator API connect होने पर यहाँ image generate होगी।",
+
+        "ai"
+
+    );
+}
+
+
+window.openImageGenerator =
+    openImageGenerator;
+
+
+/* =========================================================
+   IMAGE BUTTON
+========================================================= */
+
+if (imageBtn) {
+
+    imageBtn.addEventListener(
+        "click",
+        function () {
+
+            openImageGenerator();
+
+        }
+    );
+}
+
+
+/* =========================================================
+   IMAGE UPLOAD BUTTON
+========================================================= */
+
+if (imageUploadBtn) {
+
+    imageUploadBtn.addEventListener(
+        "click",
+        function () {
+
+            let input =
+                document.getElementById(
+                    "gillImageInput"
+                );
+
+            if (!input) {
+
+                input =
+                    document.createElement(
+                        "input"
+                    );
+
+                input.type =
+                    "file";
+
+                input.id =
+                    "gillImageInput";
+
+                input.accept =
+                    "image/*";
+
+                input.style.display =
+                    "none";
+
+                document.body.appendChild(
+                    input
+                );
+
+                input.addEventListener(
+                    "change",
+                    handleImageUpload
+                );
+            }
+
+            input.click();
+
+        }
+    );
+}
+
+
+/* =========================================================
+   HANDLE IMAGE UPLOAD
+========================================================= */
+
+function handleImageUpload(event) {
+
+    const file =
+        event.target.files &&
+        event.target.files[0];
+
+    if (!file) {
+        return;
+    }
+
+    if (
+        !file.type.startsWith("image/")
+    ) {
+
+        addMessage(
+            "❌ केवल image file upload करें।",
+            "ai"
+        );
+
+        return;
+    }
+
+
+    const reader =
+        new FileReader();
+
+
+    reader.onload =
+        function () {
+
+            const imageUrl =
+                reader.result;
+
+            const safeImage =
+                escapeHTML(
+                    String(imageUrl)
+                );
+
+
+            addMessage(
+
+                "🖼️ <b>Image Uploaded</b><br><br>" +
+
+                '<img src="' +
+                safeImage +
+                '" ' +
+                'style="width:100%;max-width:400px;border-radius:16px;" ' +
+                'alt="Uploaded image">',
+
+                "user"
+
+            );
+
+
+            addMessage(
+
+                "🤖 Image upload हो गई है।<br><br>" +
+
+                "अब आप इस image के बारे में सवाल पूछ सकते हैं।",
+
+                "ai"
+
+            );
+
+        };
+
+
+    reader.onerror =
+        function () {
+
+            addMessage(
+
+                "❌ Image पढ़ने में समस्या हुई।",
+
+                "ai"
+
+            );
+
+        };
+
+
+    reader.readAsDataURL(file);
+
+
+    event.target.value = "";
+
+}
+
+
+/* =========================================================
+   HISTORY BUTTON
+========================================================= */
+
+if (historyBtn) {
+
+    historyBtn.addEventListener(
+        "click",
+        function () {
+
+            showHistory();
+
+        }
+    );
+}
+
+
+/* =========================================================
+   VIDEO HISTORY BUTTON
+========================================================= */
+
+const videoHistoryBtn =
+    document.getElementById(
+        "videoHistoryBtn"
+    );
+
+if (videoHistoryBtn) {
+
+    videoHistoryBtn.addEventListener(
+        "click",
+        function () {
+
+            showVideoHistory();
+
+        }
+    );
+}
+
+
+/* =========================================================
+   SETTINGS BUTTON
+========================================================= */
+
+if (settingsBtn) {
+
+    settingsBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "⚙️ <b>Gill AI Settings</b><br><br>" +
+
+                "💎 Free Chats: " +
+                getRemainingChats() +
+                "/" +
+                FREE_CHAT_LIMIT +
+
+                "<br><br>" +
+
+                "⏱️ Reset: 48 Hours" +
+
+                "<br><br>" +
+
+                "📱 Version: " +
+                APP_VERSION,
+
+                "ai"
+
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   EDITOR BUTTON
+========================================================= */
+
+if (editorBtn) {
+
+    editorBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "✂️ <b>Gill AI Video Editor</b><br><br>" +
+
+                "Video Editor module तैयार है।<br><br>" +
+
+                "🎬 Video upload करके editing features आगे जोड़े जा सकते हैं।",
+
+                "ai"
+
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   CLEAR CHAT
+========================================================= */
+
+const clearChatBtn =
+    document.getElementById(
+        "clearChatBtn"
+    );
+
+if (clearChatBtn) {
+
+    clearChatBtn.addEventListener(
+        "click",
+        function () {
+
+            if (!chatBox) {
+                return;
+            }
+
+            chatBox.innerHTML = "";
+
+            addMessage(
+
+                "🧹 Chat साफ कर दी गई।",
+
+                "ai"
+
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   NEW CHAT
+========================================================= */
+
+const newChatBtn =
+    document.getElementById(
+        "newChatBtn"
+    );
+
+if (newChatBtn) {
+
+    newChatBtn.addEventListener(
+        "click",
+        function () {
+
+            if (chatBox) {
+
+                chatBox.innerHTML =
+
+                    '<div class="message ai">' +
+
+                    '👋 नया Chat शुरू हो गया।<br><br>' +
+
+                    'मैं Gill AI Ultimate हूँ। आप अपना सवाल पूछ सकते हैं।' +
+
+                    '</div>';
+
+            }
+
+            if (userInput) {
+                userInput.value = "";
+                userInput.focus();
+            }
+
+        }
+    );
+}
+
+
+/* =========================================================
+   INSTALL PWA
+========================================================= */
+
+let deferredInstallPrompt = null;
+
+
+window.addEventListener(
+    "beforeinstallprompt",
+    function (event) {
+
+        event.preventDefault();
+
+        deferredInstallPrompt =
+            event;
+
+        console.log(
+            "PWA install prompt ready."
+        );
+
+    }
+);
+
+
+const installBtn =
+    document.getElementById(
+        "installBtn"
+    );
+
+
+if (installBtn) {
+
+    installBtn.addEventListener(
+        "click",
+        async function () {
+
+            if (!deferredInstallPrompt) {
+
+                addMessage(
+
+                    "📱 App पहले से installed हो सकती है या browser install prompt उपलब्ध नहीं है।",
+
+                    "ai"
+
+                );
+
+                return;
+            }
+
+
+            deferredInstallPrompt.prompt();
+
+
+            const result =
+                await deferredInstallPrompt.userChoice;
+
+
+            console.log(
+                "Install result:",
+                result.outcome
+            );
+
+
+            deferredInstallPrompt =
+                null;
+
+        }
+    );
+}
+
+
+/* =========================================================
+   BACK TO TOP / SCROLL
+========================================================= */
+
+const scrollTopBtn =
+    document.getElementById(
+        "scrollTopBtn"
+    );
+
+
+if (scrollTopBtn) {
+
+    scrollTopBtn.addEventListener(
+        "click",
+        function () {
+
+            if (chatBox) {
+
+                chatBox.scrollTo({
+
+                    top: 0,
+
+                    behavior: "smooth"
+
+                });
+
+            }
+
+        }
+    );
+}
+
+
+/* =========================================================
+   GLOBAL UI FUNCTIONS
+========================================================= */
+
+window.handleImageUpload =
+    handleImageUpload;
+
+
+window.openImageGenerator =
+    openImageGenerator;
+
+
+/* =========================================================
+   PART 4/5 END
+========================================================= */
+/* =========================================================
+   Gill AI Ultimate v8
+   SCRIPT.JS — PART 5/5
+   DARK MODE + MENU + APP INITIALIZATION
+========================================================= */
+
+"use strict";
+
+/* =========================================================
+   DARK MODE
+========================================================= */
+
+const darkModeBtn =
+    document.getElementById("darkModeBtn");
+
+function toggleDarkMode() {
+
+    document.body.classList.toggle(
+        "dark-mode"
+    );
+
+    const isDark =
+        document.body.classList.contains(
+            "dark-mode"
+        );
+
+    localStorage.setItem(
+        "gillDarkMode",
+        isDark ? "true" : "false"
+    );
+
+    addMessage(
+
+        isDark
+            ? "🌙 Dark Mode ON"
+            : "☀️ Light Mode ON",
+
+        "ai"
+
+    );
+}
+
+
+if (darkModeBtn) {
+
+    darkModeBtn.addEventListener(
+        "click",
+        toggleDarkMode
+    );
+
+}
+
+
+/* =========================================================
+   LOAD DARK MODE
+========================================================= */
+
+try {
+
+    const savedDarkMode =
+        localStorage.getItem(
+            "gillDarkMode"
+        );
+
+    if (
+        savedDarkMode === "true"
+    ) {
+
+        document.body.classList.add(
+            "dark-mode"
+        );
+
+    }
+
+} catch (error) {
+
+    console.error(
+        "Dark mode load error:",
+        error
+    );
+
+}
+
+
+/* =========================================================
+   MENU TOGGLE
+========================================================= */
+
+const menuBtn =
+    document.getElementById(
+        "menuBtn"
+    );
+
+const sideMenu =
+    document.getElementById(
+        "sideMenu"
+    );
+
+
+if (
+    menuBtn &&
+    sideMenu
+) {
+
+    menuBtn.addEventListener(
+        "click",
+        function () {
+
+            sideMenu.classList.toggle(
+                "open"
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   CLOSE MENU
+========================================================= */
+
+const closeMenuBtn =
+    document.getElementById(
+        "closeMenuBtn"
+    );
+
+
+if (
+    closeMenuBtn &&
+    sideMenu
+) {
+
+    closeMenuBtn.addEventListener(
+        "click",
+        function () {
+
+            sideMenu.classList.remove(
+                "open"
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   OUTSIDE MENU CLICK
+========================================================= */
+
+document.addEventListener(
+    "click",
+    function (event) {
+
+        if (
+            !sideMenu ||
+            !menuBtn
+        ) {
+
+            return;
+
+        }
+
+
+        if (
+            sideMenu.classList.contains(
+                "open"
+            ) &&
+            !sideMenu.contains(
+                event.target
+            ) &&
+            !menuBtn.contains(
+                event.target
+            )
+        ) {
+
+            sideMenu.classList.remove(
+                "open"
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   LOGOUT / ACCOUNT BUTTON
+========================================================= */
+
+const accountBtn =
+    document.getElementById(
+        "accountBtn"
+    );
+
+
+if (accountBtn) {
+
+    accountBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "👤 <b>Gill AI Account</b><br><br>" +
+
+                "Account system अभी local mode में है।<br><br>" +
+
+                "🔐 Login / Create Account feature आगे जोड़ा जा सकता है।",
+
+                "ai"
+
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   RESTART APP
+========================================================= */
+
+const restartBtn =
+    document.getElementById(
+        "restartBtn"
+    );
+
+
+if (restartBtn) {
+
+    restartBtn.addEventListener(
+        "click",
+        function () {
+
+            location.reload();
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   PROFILE BUTTON
+========================================================= */
+
+const profileBtn =
+    document.getElementById(
+        "profileBtn"
+    );
+
+
+if (profileBtn) {
+
+    profileBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "👤 <b>Gill AI Profile</b><br><br>" +
+
+                "🤖 Gill AI Ultimate v8<br>" +
+
+                "💎 Free Plan<br>" +
+
+                "💬 Free Chats: " +
+
+                getRemainingChats() +
+
+                "/" +
+
+                FREE_CHAT_LIMIT,
+
+                "ai"
+
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   HELP BUTTON
+========================================================= */
+
+const helpBtn =
+    document.getElementById(
+        "helpBtn"
+    );
+
+
+if (helpBtn) {
+
+    helpBtn.addEventListener(
+        "click",
+        function () {
+
+            addMessage(
+
+                "❓ <b>Gill AI Help</b><br><br>" +
+
+                "💬 Chat — AI से बात करें<br>" +
+
+                "🎤 Voice — बोलकर message भेजें<br>" +
+
+                "🎨 Image — AI Image feature<br>" +
+
+                "🎬 Video — AI Video feature<br>" +
+
+                "🕒 History — पुराने chats देखें<br>" +
+
+                "⚙️ Settings — App settings देखें",
+
+                "ai"
+
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   PREVENT FORM RELOAD
+========================================================= */
+
+document.addEventListener(
+    "submit",
+    function (event) {
+
+        event.preventDefault();
+
+    }
+);
+
+
+/* =========================================================
+   APP READY MESSAGE
+========================================================= */
+
+console.log(
+    "======================================"
+);
+
+console.log(
+    "🤖 Gill AI Ultimate v8"
+);
+
+console.log(
+    "✅ Script loaded successfully"
+);
+
+console.log(
+    "💬 Chat system ready"
+);
+
+console.log(
+    "🎤 Voice system ready"
+);
+
+console.log(
+    "🎬 Video system ready"
+);
+
+console.log(
+    "🎨 Image system ready"
+);
+
+console.log(
+    "======================================"
+);
+
+
+/* =========================================================
+   FINAL INITIALIZATION
+========================================================= */
+
+try {
+
+    getChatUsage();
+
+    updateCreditUI();
+
+} catch (error) {
+
+    console.error(
+        "Final initialization error:",
+        error
+    );
+
+}
+
+
+/* =========================================================
+   PART 5/5 END
+========================================================= */
