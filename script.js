@@ -1012,10 +1012,11 @@ console.log(
 /* =========================================================
    PART 1/5 END
 ========================================================= */
-/* =========================================================
+
+   /* =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 2/5
-   AI VIDEO + VIDEO HISTORY + VIDEO STATUS
+   FREE AI VIDEO PROMPT WORKFLOW
 ========================================================= */
 
 
@@ -1069,16 +1070,11 @@ try {
    SAVE VIDEO HISTORY
 ========================================================= */
 
-function saveVideoHistory(
-    prompt,
-    videoUrl
-) {
+function saveVideoHistory(prompt) {
 
     videoHistory.push({
 
         prompt: String(prompt),
-
-        videoUrl: String(videoUrl),
 
         time:
             new Date().toLocaleString()
@@ -1129,29 +1125,19 @@ function showVideoHistory() {
         .reverse()
         .forEach(function(item) {
 
-            const safePrompt =
-                escapeHTML(item.prompt);
-
-            const safeUrl =
-                escapeHTML(item.videoUrl);
-
             addMessage(
 
-                "<b>📝 Prompt:</b><br>" +
-                safePrompt +
+                "<b>📝 Video Prompt:</b><br>" +
+
+                escapeHTML(
+                    item.prompt
+                ) +
 
                 "<br><br>🕒 " +
-                escapeHTML(item.time) +
 
-                "<br><br>" +
-
-                '<a href="' +
-                safeUrl +
-                '" target="_blank" rel="noopener">' +
-
-                "▶️ Video Open करें" +
-
-                "</a>",
+                escapeHTML(
+                    item.time
+                ),
 
                 "ai"
             );
@@ -1165,7 +1151,40 @@ window.showVideoHistory =
 
 
 /* =========================================================
-   GENERATE VIDEO
+   COPY VIDEO PROMPT
+========================================================= */
+
+window.copyVideoPrompt =
+    async function(prompt) {
+
+        try {
+
+            await navigator.clipboard.writeText(
+                String(prompt)
+            );
+
+            addMessage(
+                "✅ Video Prompt copy हो गया।",
+                "ai"
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Copy Prompt Error:",
+                error
+            );
+
+            addMessage(
+                "❌ Prompt copy नहीं हो पाया।",
+                "ai"
+            );
+        }
+    };
+
+
+/* =========================================================
+   FREE VIDEO WORKFLOW
 ========================================================= */
 
 async function generateVideo(
@@ -1186,129 +1205,77 @@ async function generateVideo(
         return;
     }
 
-    showTyping();
 
-    try {
+    const finalPrompt =
 
-        const response =
-            await fetch(
-                "/api/video",
-                {
+        cleanPrompt +
 
-                    method: "POST",
+        ". Cinematic realistic video, smooth camera movement, natural lighting, high detail, " +
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
+        "vertical " +
 
-                    body:
-                        JSON.stringify({
+        aspectRatio +
 
-                            prompt:
-                                cleanPrompt,
-
-                            aspectRatio:
-                                aspectRatio
-
-                        })
-                }
-            );
-
-        const raw =
-            await response.text();
-
-        let data;
-
-        try {
-
-            data =
-                JSON.parse(raw);
-
-        } catch (error) {
-
-            console.error(
-                "Video API Raw Response:",
-                raw
-            );
-
-            throw new Error(
-                "Video server ने valid JSON नहीं भेजा। /api/video check करें।"
-            );
-        }
-
-        hideTyping();
-
-        if (!response.ok) {
-
-            throw new Error(
-                data?.error ||
-                "Video generation failed."
-            );
-        }
+        " format.";
 
 
-        /* =================================================
-           DIRECT VIDEO URL
-        ================================================= */
-
-        if (data.videoUrl) {
-
-            showGeneratedVideo(
-                data.videoUrl,
-                cleanPrompt
-            );
-
-            return;
-        }
+    saveVideoHistory(
+        finalPrompt
+    );
 
 
-        /* =================================================
-           PREDICTION ID
-        ================================================= */
+    addMessage(
 
-        if (data.predictionId) {
+        "🎬 <b>Free AI Video Workflow</b><br><br>" +
 
-            addMessage(
+        "📝 <b>Your Video Prompt:</b><br><br>" +
 
-                "⏳ <b>Video Generate हो रही है...</b><br><br>" +
-                "Video तैयार होने तक कृपया इंतज़ार करें।",
+        escapeHTML(
+            finalPrompt
+        ) +
 
-                "ai"
-            );
+        "<br><br>" +
 
-            await checkVideoStatus(
-                data.predictionId,
-                cleanPrompt
-            );
+        '<button onclick="copyVideoPrompt(' +
 
-            return;
-        }
+        JSON.stringify(
+            finalPrompt
+        ).replace(
+            /"/g,
+            "&quot;"
+        ) +
+
+        ')">' +
+
+        "📋 Prompt Copy करें" +
+
+        "</button>",
+
+        "ai"
+    );
 
 
-        throw new Error(
-            "Prediction ID या Video URL नहीं मिली।"
-        );
+    addMessage(
 
-    } catch (error) {
+        "👇 <b>अब Free Video Generator खोलें:</b><br><br>" +
 
-        hideTyping();
+        '<a href="https://huggingface.co/spaces?category=video-generation" ' +
 
-        addMessage(
+        'target="_blank" rel="noopener noreferrer">' +
 
-            "❌ Video Error: " +
-            escapeHTML(error.message),
+        "🎬 Free AI Video Generator खोलें" +
 
-            "ai"
-        );
+        "</a>",
 
-        console.error(
-            "Gill AI Video Error:",
-            error
-        );
-    }
+        "ai"
+    );
+
 }
 
+
+/* =========================================================
+   GLOBAL VIDEO FUNCTION
+========================================================= */
 
 window.generateVideo =
     generateVideo;
@@ -1321,49 +1288,70 @@ window.generateVideo =
 if (videoBtn) {
 
     videoBtn.addEventListener(
+
         "click",
-        function () {
+
+        function() {
 
             const prompt =
+
                 window.prompt(
+
                     "🎬 Video बनाने के लिए Prompt लिखें:"
+
                 );
+
 
             if (
                 !prompt ||
                 !prompt.trim()
             ) {
+
                 return;
+
             }
 
+
             generateVideo(
+
                 prompt.trim(),
+
                 "9:16"
+
             );
+
         }
+
     );
+
 }
 
 
 /* =========================================================
-   VIDEO STUDIO GENERATE BUTTON
+   VIDEO STUDIO BUTTON
 ========================================================= */
 
 if (generateVideoBtn) {
 
     generateVideoBtn.addEventListener(
+
         "click",
-        function () {
+
+        function() {
 
             const promptInput =
+
                 document.getElementById(
                     "videoPrompt"
                 );
 
+
             const ratioInput =
+
                 document.getElementById(
                     "videoAspectRatio"
                 );
+
 
             if (
                 !promptInput ||
@@ -1371,29 +1359,42 @@ if (generateVideoBtn) {
             ) {
 
                 addMessage(
+
                     "❌ पहले Video Prompt लिखें।",
+
                     "ai"
+
                 );
 
                 return;
+
             }
 
+
             const ratio =
+
                 ratioInput
                     ? ratioInput.value
                     : "9:16";
 
+
             generateVideo(
+
                 promptInput.value.trim(),
+
                 ratio
+
             );
+
         }
+
     );
+
 }
 
 
 /* =========================================================
-   SHOW GENERATED VIDEO
+   VIDEO PREVIEW MESSAGE
 ========================================================= */
 
 function showGeneratedVideo(
@@ -1405,39 +1406,28 @@ function showGeneratedVideo(
         return;
     }
 
+
     const safeUrl =
+
         escapeHTML(
             String(videoUrl)
         );
-
-    const videoHTML =
-
-        '<video ' +
-        'controls ' +
-        'playsinline ' +
-        'preload="metadata" ' +
-
-        'style="' +
-        'width:100%;' +
-        'max-width:700px;' +
-        'border-radius:16px;' +
-        'display:block;' +
-        'margin-top:8px;' +
-        '">' +
-
-        '<source src="' +
-        safeUrl +
-        '" type="video/mp4">' +
-
-        'आपका browser video support नहीं करता।' +
-
-        '</video>';
 
 
     if (videoPreview) {
 
         videoPreview.innerHTML =
-            videoHTML;
+
+            '<video controls playsinline ' +
+
+            'style="width:100%;max-width:700px;border-radius:16px;">' +
+
+            '<source src="' +
+            safeUrl +
+            '" type="video/mp4">' +
+
+            '</video>';
+
     }
 
 
@@ -1445,285 +1435,24 @@ function showGeneratedVideo(
 
         "🎥 <b>Video Ready!</b><br><br>" +
 
-        videoHTML +
-
-        "<br><br>" +
-
         '<a href="' +
         safeUrl +
-        '" target="_blank" rel="noopener">' +
+        '" target="_blank" rel="noopener noreferrer">' +
 
         "▶️ Video Open करें" +
 
         "</a>",
 
         "ai"
+
     );
 
-
-    saveVideoHistory(
-        originalPrompt,
-        videoUrl
-    );
 }
-
-
-/* =========================================================
-   CHECK VIDEO STATUS
-========================================================= */
-
-async function checkVideoStatus(
-    predictionId,
-    originalPrompt
-) {
-
-    if (!predictionId) {
-
-        addMessage(
-            "❌ Video Prediction ID नहीं मिली।",
-            "ai"
-        );
-
-        return;
-    }
-
-
-    let attempts = 0;
-
-    const maxAttempts = 60;
-
-
-    const check = async function () {
-
-        attempts++;
-
-        try {
-
-            const response =
-                await fetch(
-                    "/api/video-status?id=" +
-                    encodeURIComponent(
-                        predictionId
-                    ),
-                    {
-                        method: "GET"
-                    }
-                );
-
-
-            const raw =
-                await response.text();
-
-
-            let data;
-
-            try {
-
-                data =
-                    JSON.parse(raw);
-
-            } catch (error) {
-
-                console.error(
-                    "Video Status Raw:",
-                    raw
-                );
-
-                throw new Error(
-                    "Video status server ने valid JSON नहीं भेजा।"
-                );
-            }
-
-
-            if (!response.ok) {
-
-                throw new Error(
-
-                    data?.error ||
-                    "Video status check failed."
-
-                );
-            }
-
-
-            /* =========================================
-               VIDEO READY
-            ========================================= */
-
-            if (data.videoUrl) {
-
-                showGeneratedVideo(
-
-                    data.videoUrl,
-
-                    originalPrompt
-
-                );
-
-                return;
-            }
-
-
-            /* =========================================
-               STATUS
-            ========================================= */
-
-            const status =
-                String(
-                    data.status || ""
-                ).toLowerCase();
-
-
-            /* =========================================
-               SUCCESS
-            ========================================= */
-
-            if (
-                status === "succeeded" ||
-                status === "completed" ||
-                status === "complete"
-            ) {
-
-                const finalVideoUrl =
-                    data.videoUrl ||
-                    data.output;
-
-                if (finalVideoUrl) {
-
-                    showGeneratedVideo(
-
-                        finalVideoUrl,
-
-                        originalPrompt
-
-                    );
-
-                    return;
-                }
-
-                addMessage(
-
-                    "⚠️ Video complete हुई लेकिन URL नहीं मिली।",
-
-                    "ai"
-                );
-
-                return;
-            }
-
-
-            /* =========================================
-               FAILED
-            ========================================= */
-
-            if (
-                status === "failed" ||
-                status === "error" ||
-                status === "canceled" ||
-                status === "cancelled"
-            ) {
-
-                addMessage(
-
-                    "❌ Video Generate नहीं हो पाई।<br><br>" +
-
-                    escapeHTML(
-                        data.error ||
-                        "Unknown video error."
-                    ),
-
-                    "ai"
-                );
-
-                return;
-            }
-
-
-            /* =========================================
-               MAX ATTEMPTS
-            ========================================= */
-
-            if (
-                attempts >= maxAttempts
-            ) {
-
-                addMessage(
-
-                    "⏳ Video अभी तैयार नहीं हुई।<br><br>" +
-
-                    "बाद में फिर check करें।",
-
-                    "ai"
-                );
-
-                return;
-            }
-
-
-            /* =========================================
-               PROCESSING
-            ========================================= */
-
-            console.log(
-                "Video processing:",
-                attempts,
-                "/",
-                maxAttempts
-            );
-
-
-            setTimeout(
-                check,
-                5000
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "Video Status Error:",
-                error
-            );
-
-
-            if (
-                attempts < maxAttempts
-            ) {
-
-                setTimeout(
-                    check,
-                    5000
-                );
-
-            } else {
-
-                addMessage(
-
-                    "❌ Video Status Error: " +
-
-                    escapeHTML(
-                        error.message
-                    ),
-
-                    "ai"
-                );
-            }
-        }
-    };
-
-
-    check();
-}
-
-
-window.checkVideoStatus =
-    checkVideoStatus;
 
 
 /* =========================================================
    PART 2/5 END
-========================================================= */
-/* =========================================================
+========================================================= */ =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 3/5
    VIDEO STATUS + BUTTONS + IMAGE UPLOAD
