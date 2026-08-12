@@ -1,12 +1,28 @@
-export default async function handler(req, res) {
+
+module.exports = async function handler(req, res) {
+
     if (req.method !== "POST") {
         return res.status(405).json({
-            error: "Only POST method is allowed."
+            error: "Method Not Allowed"
         });
     }
 
     try {
-        const { prompt, duration, aspectRatio } = req.body || {};
+
+        const token =
+            process.env.REPLICATE_API_TOKEN;
+
+        if (!token) {
+            return res.status(500).json({
+                error:
+                    "REPLICATE_API_TOKEN is missing in Vercel."
+            });
+        }
+
+        const {
+            prompt,
+            aspectRatio
+        } = req.body || {};
 
         if (!prompt || !String(prompt).trim()) {
             return res.status(400).json({
@@ -14,50 +30,122 @@ export default async function handler(req, res) {
             });
         }
 
-        const token = process.env.REPLICATE_API_TOKEN;
-
-        if (!token) {
-            return res.status(500).json({
-                error: "REPLICATE_API_TOKEN is missing in Vercel."
-            });
-        }
-
-        const model = process.env.REPLICATE_VIDEO_MODEL;
+        const model =
+            process.env.REPLICATE_VIDEO_MODEL;
 
         if (!model) {
             return res.status(500).json({
-                error: "REPLICATE_VIDEO_MODEL is missing in Vercel."
+                error:
+                    "REPLICATE_VIDEO_MODEL is missing in Vercel."
             });
         }
 
-        const response = await fetch(
-            "https://api.replicate.com/v1/predictions",
-            {
-                method: "POST",
+        /*
+         * REPLICATE_VIDEO_MODEL should be:
+         *
+         * owner/model-name
+         *
+         * Example:
+         * minimax/video-01
+         */
 
-                headers: {
-                    "Authorization": "Bearer " + token,
-                    "Content-Type": "application/json"
-                },
+        const modelParts =
+            String(model)
+                .trim()
+                .split("/");
 
-                body: JSON.stringify({
-                    version: model,
+        if (modelParts.length !== 2) {
+            return res.status(500).json({
+                error:
+                    "REPLICATE_VIDEO_MODEL गलत है। इसे owner/model-name format में रखें।"
+            });
+        }
 
-                    input: {
-                        prompt: String(prompt).trim(),
-                        duration: Number(duration) || 20,
-                        aspect_ratio: aspectRatio || "9:16"
-                    }
-                })
-            }
-        );
+        const owner =
+            modelParts[0];
 
-        const data = await response.json();
+        const modelName =
+            modelParts[1];
+
+        const endpoint =
+            "https://api.replicate.com/v1/models/" +
+            encodeURIComponent(owner) +
+            "/" +
+            encodeURIComponent(modelName) +
+            "/predictions";
+
+        const input = {
+            prompt:
+                String(prompt).trim()
+        };
+
+        /*
+         * केवल वही fields भेजें जिन्हें
+         * selected model accept करता है।
+         */
+
+        if (aspectRatio) {
+            input.aspect_ratio =
+                String(aspectRatio);
+        }
+
+        const response =
+            await fetch(
+                endpoint,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Authorization":
+                            "Bearer " + token,
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Prefer":
+                            "wait"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            input: input
+                        })
+                }
+            );
+
+        const raw =
+            await response.text();
+
+        let data;
+
+        try {
+
+            data =
+                JSON.parse(raw);
+
+        } catch (error) {
+
+            console.error(
+                "Replicate raw response:",
+                raw
+            );
+
+            return res.status(502).json({
+                error:
+                    "Replicate ने valid JSON नहीं भेजा।"
+            });
+        }
 
         if (!response.ok) {
-            console.error("Replicate Error:", data);
 
-            return res.status(response.status).json({
+            console.error(
+                "Replicate API Error:",
+                data
+            );
+
+            return res.status(
+                response.status
+            ).json({
                 error:
                     data?.detail ||
                     data?.error ||
@@ -71,16 +159,36 @@ export default async function handler(req, res) {
             data.status === "succeeded" &&
             data.output
         ) {
-            videoUrl = Array.isArray(data.output)
-                ? data.output[0]
-                : data.output;
+
+            if (
+                Array.isArray(
+                    data.output
+                )
+            ) {
+
+                videoUrl =
+                    data.output[0];
+
+            } else {
+
+                videoUrl =
+                    data.output;
+            }
         }
 
         return res.status(200).json({
+
             success: true,
-            predictionId: data.id,
-            status: data.status,
-            videoUrl: videoUrl
+
+            predictionId:
+                data.id || null,
+
+            status:
+                data.status || null,
+
+            videoUrl:
+                videoUrl
+
         });
 
     } catch (error) {
@@ -92,8 +200,8 @@ export default async function handler(req, res) {
 
         return res.status(500).json({
             error:
-                error.message ||
+                error?.message ||
                 "Internal video server error."
         });
     }
-                      }
+};
