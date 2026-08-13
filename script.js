@@ -1,7 +1,7 @@
 /* =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 1/5
-   CORE + CHAT + VOICE + HISTORY
+   CORE + CHAT + VOICE + HISTORy
 ========================================================= */
 
 "use strict";
