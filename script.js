@@ -1,11 +1,10 @@
 /* =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 1/5
-   CORE + CHAT + VOICE + HISTORy
+   CORE + CHAT + VOICE + HISTORY
 ========================================================= */
 
 "use strict";
-
 
 /* =========================================================
    ELEMENTS
@@ -41,7 +40,6 @@ const settingsBtn =
 const imageUploadBtn =
     document.getElementById("imageUploadBtn");
 
-
 /* =========================================================
    APP CONFIG
 ========================================================= */
@@ -57,7 +55,6 @@ const FREE_CHAT_LIMIT =
 
 const FREE_CHAT_PERIOD =
     48 * 60 * 60 * 1000;
-
 
 /* =========================================================
    CHAT USAGE
@@ -84,7 +81,6 @@ try {
     chatUsage = null;
 }
 
-
 /* =========================================================
    GET CHAT USAGE
 ========================================================= */
@@ -93,7 +89,6 @@ function getChatUsage() {
 
     const now =
         Date.now();
-
 
     if (
         !chatUsage ||
@@ -113,7 +108,6 @@ function getChatUsage() {
 
         };
 
-
         localStorage.setItem(
 
             "gillChatUsage",
@@ -126,10 +120,8 @@ function getChatUsage() {
 
     }
 
-
     return chatUsage;
 }
-
 
 /* =========================================================
    REMAINING CHATS
@@ -147,7 +139,6 @@ function getRemainingChats() {
     );
 }
 
-
 /* =========================================================
    USE CHAT CREDIT
 ========================================================= */
@@ -157,9 +148,7 @@ function useChatCredit() {
     const usage =
         getChatUsage();
 
-
     usage.count++;
-
 
     localStorage.setItem(
 
@@ -171,10 +160,8 @@ function useChatCredit() {
 
     );
 
-
     updateCreditUI();
 }
-
 
 /* =========================================================
    CAN SEND CHAT
@@ -203,10 +190,8 @@ function canSendChat() {
         return false;
     }
 
-
     return true;
 }
-
 
 /* =========================================================
    CREDIT UI
@@ -217,18 +202,15 @@ function updateCreditUI() {
     const remaining =
         getRemainingChats();
 
-
     const creditDisplay =
         document.getElementById(
             "creditDisplay"
         );
 
-
     const freeCredits =
         document.getElementById(
             "freeCredits"
         );
-
 
     if (
         creditDisplay
@@ -240,7 +222,6 @@ function updateCreditUI() {
 
     }
 
-
     if (
         freeCredits
     ) {
@@ -250,7 +231,6 @@ function updateCreditUI() {
 
     }
 }
-
 
 /* =========================================================
    HTML SECURITY
@@ -287,7 +267,6 @@ function escapeHTML(value) {
 
 }
 
-
 /* =========================================================
    ADD MESSAGE
 ========================================================= */
@@ -306,17 +285,14 @@ function addMessage(
         return;
     }
 
-
     const div =
         document.createElement(
             "div"
         );
 
-
     div.className =
         "message " +
         type;
-
 
     div.innerHTML =
         String(text).replace(
@@ -324,17 +300,14 @@ function addMessage(
             "<br>"
         );
 
-
     chatBox.appendChild(
         div
     );
-
 
     chatBox.scrollTop =
         chatBox.scrollHeight;
 
 }
-
 
 /* =========================================================
    TYPING INDICATOR
@@ -347,7 +320,6 @@ function showTyping() {
         return;
     }
 
-
     if (
         document.getElementById(
             "typing"
@@ -357,35 +329,28 @@ function showTyping() {
         return;
     }
 
-
     const typing =
         document.createElement(
             "div"
         );
 
-
     typing.id =
         "typing";
-
 
     typing.className =
         "message ai";
 
-
     typing.innerHTML =
         "🤖 Typing...";
-
 
     chatBox.appendChild(
         typing
     );
 
-
     chatBox.scrollTop =
         chatBox.scrollHeight;
 
 }
-
 
 /* =========================================================
    HIDE TYPING
@@ -398,7 +363,6 @@ function hideTyping() {
             "typing"
         );
 
-
     if (typing) {
 
         typing.remove();
@@ -407,13 +371,11 @@ function hideTyping() {
 
 }
 
-
 /* =========================================================
    CHAT HISTORY
 ========================================================= */
 
 let chatHistory = [];
-
 
 try {
 
@@ -425,7 +387,6 @@ try {
             ) || "[]"
 
         );
-
 
     if (
         !Array.isArray(
@@ -447,7 +408,6 @@ try {
     chatHistory = [];
 
 }
-
 
 /* =========================================================
    SAVE HISTORY
@@ -472,7 +432,6 @@ function saveHistory(
 
     });
 
-
     if (
         chatHistory.length > 100
     ) {
@@ -483,7 +442,6 @@ function saveHistory(
             );
 
     }
-
 
     localStorage.setItem(
 
@@ -497,7 +455,6 @@ function saveHistory(
 
 }
 
-
 /* =========================================================
    SHOW HISTORY
 ========================================================= */
@@ -508,7 +465,6 @@ function showHistory() {
 
         return;
     }
-
 
     if (
         chatHistory.length === 0
@@ -525,7 +481,6 @@ function showHistory() {
         return;
     }
 
-
     addMessage(
 
         "📚 <b>Chat History</b>",
@@ -533,7 +488,6 @@ function showHistory() {
         "ai"
 
     );
-
 
     chatHistory
         .slice()
@@ -574,7 +528,6 @@ function showHistory() {
 
 }
 
-
 /* =========================================================
    GLOBAL FUNCTIONS
 ========================================================= */
@@ -584,7 +537,6 @@ window.showHistory =
 
 window.addMessage =
     addMessage;
-
 
 /* =========================================================
    AI CHAT API
@@ -623,13 +575,10 @@ async function aiReply(
 
         );
 
-
     const raw =
         await response.text();
 
-
     let data;
-
 
     try {
 
@@ -645,7 +594,6 @@ async function aiReply(
             raw
         );
 
-
         throw new Error(
 
             "AI server ने valid JSON नहीं भेजा। /api/chat check करें।"
@@ -653,7 +601,6 @@ async function aiReply(
         );
 
     }
-
 
     if (
         !response.ok
@@ -668,7 +615,6 @@ async function aiReply(
 
     }
 
-
     if (
         !data.reply
     ) {
@@ -681,11 +627,9 @@ async function aiReply(
 
     }
 
-
     return data.reply;
 
 }
-
 
 /* =========================================================
    SEND MESSAGE
@@ -702,16 +646,13 @@ async function sendMessage() {
         return;
     }
 
-
     const text =
         userInput.value.trim();
-
 
     if (!text) {
 
         return;
     }
-
 
     if (
         !canSendChat()
@@ -720,9 +661,7 @@ async function sendMessage() {
         return;
     }
 
-
     useChatCredit();
-
 
     addMessage(
 
@@ -734,13 +673,10 @@ async function sendMessage() {
 
     );
 
-
     userInput.value =
         "";
 
-
     showTyping();
-
 
     try {
 
@@ -749,9 +685,7 @@ async function sendMessage() {
                 text
             );
 
-
         hideTyping();
-
 
         addMessage(
 
@@ -761,7 +695,6 @@ async function sendMessage() {
 
         );
 
-
         saveHistory(
 
             text,
@@ -769,7 +702,6 @@ async function sendMessage() {
             reply
 
         );
-
 
         addMessage(
 
@@ -787,11 +719,9 @@ async function sendMessage() {
 
         );
 
-
     } catch (error) {
 
         hideTyping();
-
 
         addMessage(
 
@@ -805,7 +735,6 @@ async function sendMessage() {
 
         );
 
-
         console.error(
 
             "Gill AI Chat Error:",
@@ -817,7 +746,6 @@ async function sendMessage() {
     }
 
 }
-
 
 /* =========================================================
    SEND BUTTON
@@ -834,7 +762,6 @@ if (sendBtn) {
     );
 
 }
-
 
 /* =========================================================
    ENTER KEY
@@ -864,7 +791,6 @@ if (userInput) {
 
 }
 
-
 /* =========================================================
    VOICE INPUT
 ========================================================= */
@@ -882,7 +808,6 @@ if (voiceBtn) {
                 window.SpeechRecognition ||
                 window.webkitSpeechRecognition;
 
-
             if (!SpeechRecognition) {
 
                 alert(
@@ -894,22 +819,17 @@ if (voiceBtn) {
                 return;
             }
 
-
             const recognition =
                 new SpeechRecognition();
-
 
             recognition.lang =
                 "hi-IN";
 
-
             recognition.interimResults =
                 false;
 
-
             recognition.maxAlternatives =
                 1;
-
 
             recognition.onstart =
                 function() {
@@ -924,14 +844,12 @@ if (voiceBtn) {
 
                 };
 
-
             recognition.onresult =
                 function(event) {
 
                     const transcript =
                         event.results[0][0]
                             .transcript;
-
 
                     if (userInput) {
 
@@ -944,7 +862,6 @@ if (voiceBtn) {
 
                 };
 
-
             recognition.onerror =
                 function(event) {
 
@@ -956,7 +873,6 @@ if (voiceBtn) {
 
                     );
 
-
                     addMessage(
 
                         "❌ Voice input में समस्या हुई।",
@@ -967,7 +883,6 @@ if (voiceBtn) {
 
                 };
 
-
             recognition.onend =
                 function() {
 
@@ -976,7 +891,6 @@ if (voiceBtn) {
                     );
 
                 };
-
 
             try {
 
@@ -1000,7 +914,6 @@ if (voiceBtn) {
 
 }
 
-
 /* =========================================================
    INITIALIZE
 ========================================================= */
@@ -1008,7 +921,6 @@ if (voiceBtn) {
 getChatUsage();
 
 updateCreditUI();
-
 
 console.log(
 
@@ -1019,14 +931,13 @@ console.log(
 
 );
 
-
 /* =========================================================
-   PART 1/5 END
+   END OF PART 1
 ========================================================= */
- /* =========================================================
+/* =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 2/5
-   FREE AI VIDEO PROMPT WORKFLOW + VIDEO HISTORY
+   VIDEO GENERATOR + VIDEO HISTORY
 ========================================================= */
 
 
@@ -1053,18 +964,14 @@ const videoAspectRatio =
 
 let videoHistory = [];
 
-
 try {
 
     videoHistory =
         JSON.parse(
-
             localStorage.getItem(
                 "gillVideoHistory"
             ) || "[]"
-
         );
-
 
     if (
         !Array.isArray(
@@ -1184,9 +1091,7 @@ function showVideoHistory() {
                         item.prompt
                     ) +
 
-                    "<br><br>" +
-
-                    "🕒 " +
+                    "<br><br>🕒 " +
 
                     escapeHTML(
                         item.time
@@ -1202,10 +1107,6 @@ function showVideoHistory() {
 }
 
 
-/* =========================================================
-   GLOBAL VIDEO HISTORY
-========================================================= */
-
 window.showVideoHistory =
     showVideoHistory;
 
@@ -1217,30 +1118,11 @@ window.showVideoHistory =
 window.copyVideoPrompt =
     async function(prompt) {
 
-        const text =
-            String(prompt || "");
-
-
-        if (!text) {
-
-            addMessage(
-
-                "❌ Copy करने के लिए Prompt नहीं है।",
-
-                "ai"
-
-            );
-
-            return;
-        }
-
-
         try {
 
             await navigator.clipboard.writeText(
-                text
+                String(prompt)
             );
-
 
             addMessage(
 
@@ -1260,7 +1142,6 @@ window.copyVideoPrompt =
 
             );
 
-
             addMessage(
 
                 "❌ Prompt copy नहीं हो पाया।",
@@ -1275,7 +1156,7 @@ window.copyVideoPrompt =
 
 
 /* =========================================================
-   FREE VIDEO PROMPT WORKFLOW
+   FREE VIDEO WORKFLOW
 ========================================================= */
 
 async function generateVideo(
@@ -1309,8 +1190,6 @@ async function generateVideo(
 
         ". Cinematic realistic video, smooth camera movement, natural lighting, high detail, " +
 
-        "social-media-ready composition, " +
-
         "vertical " +
 
         aspectRatio +
@@ -1325,9 +1204,9 @@ async function generateVideo(
 
     addMessage(
 
-        "🎬 <b>Gill AI Free Video Workflow</b><br><br>" +
+        "🎬 <b>Free AI Video Workflow</b><br><br>" +
 
-        "📝 <b>आपका Video Prompt:</b><br><br>" +
+        "📝 <b>Your Video Prompt:</b><br><br>" +
 
         escapeHTML(
             finalPrompt
@@ -1335,9 +1214,7 @@ async function generateVideo(
 
         "<br><br>" +
 
-        '<button type="button" ' +
-
-        'onclick="copyVideoPrompt(' +
+        '<button onclick="copyVideoPrompt(' +
 
         JSON.stringify(
             finalPrompt
@@ -1359,15 +1236,13 @@ async function generateVideo(
 
     addMessage(
 
-        "👇 <b>Free Video Generator खोलें:</b><br><br>" +
+        "👇 <b>अब Free Video Generator खोलें:</b><br><br>" +
 
         '<a href="https://huggingface.co/spaces?category=video-generation" ' +
 
-        'target="_blank" ' +
+        'target="_blank" rel="noopener noreferrer">' +
 
-        'rel="noopener noreferrer">' +
-
-        "🎬 Free AI Video Generator" +
+        "🎬 Free AI Video Generator खोलें" +
 
         "</a>",
 
@@ -1432,7 +1307,7 @@ if (videoBtn) {
 
 
 /* =========================================================
-   VIDEO STUDIO GENERATE BUTTON
+   GENERATE VIDEO BUTTON
 ========================================================= */
 
 if (generateVideoBtn) {
@@ -1443,47 +1318,25 @@ if (generateVideoBtn) {
 
         function() {
 
-            const promptInput =
-                document.getElementById(
-                    "videoPrompt"
-                );
+            const prompt =
+
+                videoPrompt
+                    ? videoPrompt.value.trim()
+                    : "";
 
 
-            const ratioInput =
-                document.getElementById(
-                    "videoAspectRatio"
-                );
+            const aspectRatio =
 
-
-            if (
-                !promptInput ||
-                !promptInput.value.trim()
-            ) {
-
-                addMessage(
-
-                    "❌ पहले Video Prompt लिखें।",
-
-                    "ai"
-
-                );
-
-                return;
-            }
-
-
-            const ratio =
-
-                ratioInput
-                    ? ratioInput.value
+                videoAspectRatio
+                    ? videoAspectRatio.value
                     : "9:16";
 
 
             generateVideo(
 
-                promptInput.value.trim(),
+                prompt,
 
-                ratio
+                aspectRatio
 
             );
 
@@ -1495,12 +1348,53 @@ if (generateVideoBtn) {
 
 
 /* =========================================================
-   VIDEO PREVIEW HELPER
+   VIDEO PROMPT ENTER KEY
 ========================================================= */
 
-function showVideoPromptPreview(
-    prompt
-) {
+if (videoPrompt) {
+
+    videoPrompt.addEventListener(
+
+        "keydown",
+
+        function(event) {
+
+            if (
+                event.key === "Enter"
+            ) {
+
+                event.preventDefault();
+
+
+                const aspectRatio =
+
+                    videoAspectRatio
+                        ? videoAspectRatio.value
+                        : "9:16";
+
+
+                generateVideo(
+
+                    videoPrompt.value.trim(),
+
+                    aspectRatio
+
+                );
+
+            }
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   VIDEO PREVIEW CLEAR
+========================================================= */
+
+function clearVideoPreview() {
 
     if (!videoPreview) {
 
@@ -1509,72 +1403,19 @@ function showVideoPromptPreview(
 
 
     videoPreview.innerHTML =
-
-        "<div " +
-
-        'style="' +
-
-        "padding:16px;" +
-        "border-radius:16px;" +
-        "background:#111827;" +
-        "margin-top:10px;" +
-
-        '">' +
-
-        "<b>🎬 Video Prompt Ready</b><br><br>" +
-
-        escapeHTML(
-            prompt
-        ) +
-
-        "</div>";
+        "";
 
 }
 
 
+window.clearVideoPreview =
+    clearVideoPreview;
+
+
 /* =========================================================
-   VIDEO PROMPT INPUT
+   END OF PART 2
 ========================================================= */
-
-if (videoPrompt) {
-
-    videoPrompt.addEventListener(
-
-        "input",
-
-        function() {
-
-            const text =
-                videoPrompt.value.trim();
-
-
-            if (!text) {
-
-                if (videoPreview) {
-
-                    videoPreview.innerHTML =
-                        "";
-
-                }
-
-                return;
-            }
-
-
-            showVideoPromptPreview(
-                text
-            );
-
-        }
-
-    );
-
-}
-
-
-/* =========================================================
-   PART 2/5 END
-========================================================= */ =========================================================
+ =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 3/5
    VIDEO STATUS + BUTTONS + IMAGE UPLOAD
