@@ -1,28 +1,12 @@
-
-module.exports = async function handler(req, res) {
-
+export default async function handler(req, res) {
     if (req.method !== "POST") {
         return res.status(405).json({
-            error: "Method Not Allowed"
+            error: "Method not allowed"
         });
     }
 
     try {
-
-        const token =
-            process.env.REPLICATE_API_TOKEN;
-
-        if (!token) {
-            return res.status(500).json({
-                error:
-                    "REPLICATE_API_TOKEN is missing in Vercel."
-            });
-        }
-
-        const {
-            prompt,
-            aspectRatio
-        } = req.body || {};
+        const { prompt, aspectRatio = "9:16" } = req.body || {};
 
         if (!prompt || !String(prompt).trim()) {
             return res.status(400).json({
@@ -30,178 +14,57 @@ module.exports = async function handler(req, res) {
             });
         }
 
-        const model =
-            process.env.REPLICATE_VIDEO_MODEL;
+        const apiKey = process.env.FAL_KEY;
 
-        if (!model) {
+        if (!apiKey) {
             return res.status(500).json({
-                error:
-                    "REPLICATE_VIDEO_MODEL is missing in Vercel."
+                error: "FAL_KEY is not configured."
             });
         }
 
-        /*
-         * REPLICATE_VIDEO_MODEL should be:
-         *
-         * owner/model-name
-         *
-         * Example:
-         * minimax/video-01
-         */
+        const response = await fetch(
+            "https://queue.fal.run/fal-ai/wan/v2.2-a14b/text-to-video",
+            {
+                method: "POST",
 
-        const modelParts =
-            String(model)
-                .trim()
-                .split("/");
+                headers: {
+                    "Authorization": `Key ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
 
-        if (modelParts.length !== 2) {
-            return res.status(500).json({
-                error:
-                    "REPLICATE_VIDEO_MODEL गलत है। इसे owner/model-name format में रखें।"
-            });
-        }
+                body: JSON.stringify({
+                    prompt: String(prompt).trim(),
+                    aspect_ratio: String(aspectRatio)
+                })
+            }
+        );
 
-        const owner =
-            modelParts[0];
-
-        const modelName =
-            modelParts[1];
-
-        const endpoint =
-            "https://api.replicate.com/v1/models/" +
-            encodeURIComponent(owner) +
-            "/" +
-            encodeURIComponent(modelName) +
-            "/predictions";
-
-        const input = {
-            prompt:
-                String(prompt).trim()
-        };
-
-        /*
-         * केवल वही fields भेजें जिन्हें
-         * selected model accept करता है।
-         */
-
-        if (aspectRatio) {
-            input.aspect_ratio =
-                String(aspectRatio);
-        }
-
-        const response =
-            await fetch(
-                endpoint,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Authorization":
-                            "Bearer " + token,
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Prefer":
-                            "wait"
-                    },
-
-                    body:
-                        JSON.stringify({
-                            input: input
-                        })
-                }
-            );
-
-        const raw =
-            await response.text();
-
-        let data;
-
-        try {
-
-            data =
-                JSON.parse(raw);
-
-        } catch (error) {
-
-            console.error(
-                "Replicate raw response:",
-                raw
-            );
-
-            return res.status(502).json({
-                error:
-                    "Replicate ने valid JSON नहीं भेजा।"
-            });
-        }
+        const data = await response.json();
 
         if (!response.ok) {
+            console.error("fal.ai error:", data);
 
-            console.error(
-                "Replicate API Error:",
-                data
-            );
-
-            return res.status(
-                response.status
-            ).json({
+            return res.status(response.status).json({
                 error:
                     data?.detail ||
                     data?.error ||
-                    "Replicate video generation failed."
+                    "fal.ai video request failed."
             });
         }
 
-        let videoUrl = null;
-
-        if (
-            data.status === "succeeded" &&
-            data.output
-        ) {
-
-            if (
-                Array.isArray(
-                    data.output
-                )
-            ) {
-
-                videoUrl =
-                    data.output[0];
-
-            } else {
-
-                videoUrl =
-                    data.output;
-            }
-        }
-
         return res.status(200).json({
-
             success: true,
-
-            predictionId:
-                data.id || null,
-
-            status:
-                data.status || null,
-
-            videoUrl:
-                videoUrl
-
+            request_id: data.request_id || null,
+            status_url: data.status_url || null,
+            response_url: data.response_url || null
         });
 
     } catch (error) {
 
-        console.error(
-            "Gill AI Video Error:",
-            error
-        );
+        console.error("Video API Error:", error);
 
         return res.status(500).json({
-            error:
-                error?.message ||
-                "Internal video server error."
+            error: error.message || "Video generation failed."
         });
     }
-};
+}
