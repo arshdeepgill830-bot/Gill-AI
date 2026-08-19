@@ -1349,10 +1349,11 @@ async function checkVideoStatus(
 /* =========================================================
    PART 2 — SECTION 1/2 END
 ========================================================= */
- /* =========================================================
+/* =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 2/5 — SECTION 2/2
    REAL AI VIDEO GENERATOR + FAL.AI
+   DURATION: 10 / 20 SECONDS
 ========================================================= */
 
 
@@ -1366,7 +1367,7 @@ async function generateVideo(
 
     aspectRatio = "9:16",
 
-    duration = 35
+    duration = 10
 
 ) {
 
@@ -1398,7 +1399,7 @@ async function generateVideo(
 
     /* -----------------------------------------------------
        CHECK DURATION
-       Gill AI supports 35 or 40 seconds request.
+       ONLY 10 OR 20 SECONDS
     ----------------------------------------------------- */
 
     duration =
@@ -1408,11 +1409,11 @@ async function generateVideo(
 
 
     if (
-        duration !== 35 &&
-        duration !== 40
+        duration !== 10 &&
+        duration !== 20
     ) {
 
-        duration = 35;
+        duration = 10;
 
     }
 
@@ -1475,6 +1476,12 @@ async function generateVideo(
             'Gill AI → fal.ai' +
 
             '</p>' +
+
+            '<p>⏱️ Duration: ' +
+
+            duration +
+
+            ' seconds</p>' +
 
             '<p>⏳ कृपया प्रतीक्षा करें...</p>' +
 
@@ -1706,7 +1713,6 @@ async function generateVideo(
         if (videoPreview) {
 
             videoPreview.innerHTML =
-
                 "";
 
         }
@@ -1778,7 +1784,7 @@ if (videoBtn) {
 
                 "9:16",
 
-                35
+                10
 
             );
 
@@ -1827,7 +1833,7 @@ if (generateVideoBtn) {
                         videoDuration.value
                     )
 
-                    : 35;
+                    : 10;
 
 
             generateVideo(
@@ -1888,7 +1894,7 @@ if (videoPrompt) {
                             videoDuration.value
                         )
 
-                        : 35;
+                        : 10;
 
 
                 generateVideo(
@@ -1934,7 +1940,7 @@ window.clearVideoPreview =
 
 
 /* =========================================================
-   END OF PART 2/5
+   END OF PART 2/5 — SECTION 2/2
 ========================================================= */ =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 3/5
