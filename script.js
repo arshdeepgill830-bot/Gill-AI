@@ -637,9 +637,11 @@ console.log(
 ========================================================= */
 /* =========================================================
    Gill AI Ultimate v8
-   SCRIPT.JS — PART 2/5
-   VIDEO GENERATOR + VIDEO HISTORY
+   SCRIPT.JS — PART 2/5 — SECTION 1/2
+   REAL AI VIDEO GENERATOR + FAL.AI
+   VIDEO HISTORY + STATUS CHECK
 ========================================================= */
+
 
 /* =========================================================
    VIDEO ELEMENTS
@@ -656,6 +658,10 @@ const videoPrompt =
 
 const videoAspectRatio =
     document.getElementById("videoAspectRatio");
+
+const videoDuration =
+    document.getElementById("videoDuration");
+
 
 /* =========================================================
    VIDEO HISTORY
@@ -693,12 +699,15 @@ try {
 
 }
 
+
 /* =========================================================
    SAVE VIDEO HISTORY
 ========================================================= */
 
 function saveVideoHistory(
-    prompt
+    prompt,
+    videoUrl = "",
+    duration = ""
 ) {
 
     videoHistory.push({
@@ -706,11 +715,18 @@ function saveVideoHistory(
         prompt:
             String(prompt),
 
+        videoUrl:
+            String(videoUrl || ""),
+
+        duration:
+            String(duration || ""),
+
         time:
             new Date()
                 .toLocaleString()
 
     });
+
 
     if (
         videoHistory.length > 50
@@ -723,17 +739,16 @@ function saveVideoHistory(
 
     }
 
+
     localStorage.setItem(
-
         "gillVideoHistory",
-
         JSON.stringify(
             videoHistory
         )
-
     );
 
 }
+
 
 /* =========================================================
    SHOW VIDEO HISTORY
@@ -742,32 +757,29 @@ function saveVideoHistory(
 function showVideoHistory() {
 
     if (!chatBox) {
-
         return;
     }
+
 
     if (
         videoHistory.length === 0
     ) {
 
         addMessage(
-
             "🎬 <b>अभी कोई Video History नहीं है।</b>",
-
             "ai"
-
         );
 
         return;
+
     }
 
+
     addMessage(
-
         "🎬 <b>Video History</b>",
-
         "ai"
-
     );
+
 
     videoHistory
         .slice()
@@ -775,22 +787,70 @@ function showVideoHistory() {
         .forEach(
             function(item) {
 
-                addMessage(
+                let html =
 
-                    "<b>📝 Video Prompt:</b><br>" +
+                    "<b>📝 Prompt:</b><br>" +
 
                     escapeHTML(
                         item.prompt
                     ) +
 
-                    "<br><br>🕒 " +
+                    "<br><br>" +
+
+                    "⏱️ Duration: " +
+
+                    escapeHTML(
+                        item.duration ||
+                        "N/A"
+                    ) +
+
+                    " sec<br><br>" +
+
+                    "🕒 " +
 
                     escapeHTML(
                         item.time
-                    ),
+                    );
 
+
+                if (
+                    item.videoUrl
+                ) {
+
+                    html +=
+
+                        "<br><br>" +
+
+                        '<video controls playsinline ' +
+
+                        'style="' +
+
+                        'width:100%;' +
+
+                        'max-width:700px;' +
+
+                        'border-radius:14px;' +
+
+                        '">' +
+
+                        '<source src="' +
+
+                        escapeHTML(
+                            item.videoUrl
+                        ) +
+
+                        '" type="video/mp4">' +
+
+                        "आपका browser video नहीं चला सकता।" +
+
+                        "</video>";
+
+                }
+
+
+                addMessage(
+                    html,
                     "ai"
-
                 );
 
             }
@@ -798,8 +858,10 @@ function showVideoHistory() {
 
 }
 
+
 window.showVideoHistory =
     showVideoHistory;
+
 
 /* =========================================================
    COPY VIDEO PROMPT
@@ -810,53 +872,514 @@ window.copyVideoPrompt =
 
         try {
 
-            await navigator.clipboard.writeText(
-                String(prompt)
-            );
+            await navigator
+                .clipboard
+                .writeText(
+                    String(prompt)
+                );
 
             addMessage(
-
                 "✅ Video Prompt copy हो गया।",
-
                 "ai"
-
             );
 
         } catch (error) {
 
             console.error(
-
                 "Copy Prompt Error:",
-
                 error
-
             );
 
             addMessage(
-
                 "❌ Prompt copy नहीं हो पाया।",
-
                 "ai"
-
             );
 
         }
 
     };
 
+
 /* =========================================================
-   FREE VIDEO WORKFLOW
+   SHOW GENERATED VIDEO
+========================================================= */
+
+function showGeneratedVideo(
+    videoUrl
+) {
+
+    if (!videoPreview) {
+        return;
+    }
+
+
+    if (!videoUrl) {
+        return;
+    }
+
+
+    videoPreview.innerHTML =
+
+        '<div style="' +
+        'padding:12px;' +
+        'border-radius:16px;' +
+        'background:#111827;' +
+        'margin-top:10px;' +
+        '">' +
+
+        '<video controls autoplay playsinline ' +
+        'style="' +
+        'width:100%;' +
+        'max-width:700px;' +
+        'border-radius:14px;' +
+        '">' +
+
+        '<source src="' +
+        escapeHTML(
+            videoUrl
+        ) +
+        '" type="video/mp4">' +
+
+        "आपका browser video नहीं चला सकता।" +
+
+        "</video>" +
+
+        "<br><br>" +
+
+        '<a href="' +
+        escapeHTML(
+            videoUrl
+        ) +
+        '" target="_blank" ' +
+        'rel="noopener noreferrer">' +
+
+        "⬇️ Video खोलें / Save करें" +
+
+        "</a>" +
+
+        "</div>";
+
+}
+
+
+window.showGeneratedVideo =
+    showGeneratedVideo;
+
+
+/* =========================================================
+   EXTRACT VIDEO URL
+========================================================= */
+
+function extractVideoUrl(
+    data
+) {
+
+    if (!data) {
+        return "";
+    }
+
+
+    if (
+        data.video &&
+        typeof data.video === "object" &&
+        data.video.url
+    ) {
+
+        return String(
+            data.video.url
+        );
+
+    }
+
+
+    if (
+        data.output &&
+        data.output.video &&
+        data.output.video.url
+    ) {
+
+        return String(
+            data.output.video.url
+        );
+
+    }
+
+
+    if (
+        typeof data.output === "string"
+    ) {
+
+        return String(
+            data.output
+        );
+
+    }
+
+
+    if (
+        Array.isArray(
+            data.output
+        )
+    ) {
+
+        const first =
+            data.output[0];
+
+
+        if (
+            typeof first === "string"
+        ) {
+
+            return first;
+
+        }
+
+
+        if (
+            first &&
+            first.url
+        ) {
+
+            return String(
+                first.url
+            );
+
+        }
+
+    }
+
+
+    return "";
+
+}
+
+
+/* =========================================================
+   CHECK VIDEO STATUS — PART 1
+========================================================= */
+
+async function checkVideoStatus(
+
+    statusUrl,
+
+    responseUrl,
+
+    prompt,
+
+    duration
+
+) {
+
+    const maxAttempts =
+        120;
+
+    let attempts =
+        0;
+
+
+    while (
+        attempts <
+        maxAttempts
+    ) {
+
+        attempts++;
+
+
+        try {
+
+            const statusApiUrl =
+
+                "/api/video-status?url=" +
+
+                encodeURIComponent(
+                    statusUrl
+                );
+
+
+            const response =
+
+                await fetch(
+                    statusApiUrl,
+                    {
+                        method:
+                            "GET",
+
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
+                );
+
+
+            const raw =
+                await response.text();
+
+
+            let data;
+
+
+            try {
+
+                data =
+                    raw
+                        ? JSON.parse(raw)
+                        : {};
+
+            } catch (error) {
+
+                console.error(
+                    "Video Status Raw Response:",
+                    raw
+                );
+
+                throw new Error(
+                    "Video status server ने valid JSON नहीं भेजा।"
+                );
+
+            }
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data?.error ||
+                    "Video status request failed."
+                );
+
+            }
+
+
+            console.log(
+                "Gill AI Video Status:",
+                data
+            );
+
+
+            const status =
+                String(
+                    data.status || ""
+                ).toUpperCase();
+
+
+            if (
+                status === "COMPLETED"
+            ) {
+
+                let videoUrl =
+                    extractVideoUrl(
+                        data
+                    );
+
+
+                if (
+                    !videoUrl &&
+                    responseUrl
+                ) {
+
+                    const resultApiUrl =
+
+                        "/api/video-status?url=" +
+
+                        encodeURIComponent(
+                            responseUrl
+                        );
+
+
+                    const resultResponse =
+
+                        await fetch(
+                            resultApiUrl,
+                            {
+                                method:
+                                    "GET",
+
+                                headers: {
+                                    "Accept":
+                                        "application/json"
+                                }
+                            }
+                        );
+
+
+                    const resultRaw =
+                        await resultResponse.text();
+
+
+                    let resultData;
+
+
+                    try {
+
+                        resultData =
+                            resultRaw
+                                ? JSON.parse(
+                                    resultRaw
+                                )
+                                : {};
+
+                    } catch (error) {
+
+                        throw new Error(
+                            "Video result valid JSON नहीं है।"
+                        );
+
+                    }
+
+
+                    videoUrl =
+                        extractVideoUrl(
+                            resultData
+                        );
+
+                }
+
+
+                if (!videoUrl) {
+
+                    throw new Error(
+                        "Video तैयार हुई लेकिन video URL नहीं मिला।"
+                    );
+
+                }
+
+
+                showGeneratedVideo(
+                    videoUrl
+                );
+
+
+                saveVideoHistory(
+                    prompt,
+                    videoUrl,
+                    duration
+                );
+
+
+                addMessage(
+                    "🎉 <b>AI Video तैयार है! 🎬</b><br><br>" +
+                    "⏱️ Requested Duration: <b>" +
+                    escapeHTML(
+                        String(duration)
+                    ) +
+                    " seconds</b>",
+                    "ai"
+                );
+
+
+                return videoUrl;
+
+            }
+
+
+            if (
+                status === "FAILED" ||
+                status === "ERROR"
+            ) {
+
+                throw new Error(
+                    data?.error ||
+                    "fal.ai video generation failed."
+                );
+
+            }
+
+
+            if (videoPreview) {
+
+                videoPreview.innerHTML =
+
+                    '<div style="' +
+                    'padding:15px;' +
+                    'text-align:center;' +
+                    'border-radius:15px;' +
+                    'background:#1e293b;' +
+                    '">' +
+
+                    "⏳ <b>Video तैयार हो रही है...</b><br><br>" +
+
+                    "Status: " +
+
+                    escapeHTML(
+                        status ||
+                        "PROCESSING"
+                    ) +
+
+                    "<br><br>" +
+
+                    "कृपया प्रतीक्षा करें। 🎬" +
+
+                    "</div>";
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Video Status Error:",
+                error
+            );
+
+            throw error;
+
+        }
+
+
+        await new Promise(
+            function(resolve) {
+
+                setTimeout(
+                    resolve,
+                    5000
+                );
+
+            }
+        );
+
+    }
+
+
+    throw new Error(
+        "Video generation में बहुत समय लग रहा है।"
+    );
+
+}
+
+
+/* =========================================================
+   PART 2 — SECTION 1/2 END
+========================================================= */
+ /* =========================================================
+   Gill AI Ultimate v8
+   SCRIPT.JS — PART 2/5 — SECTION 2/2
+   REAL AI VIDEO GENERATOR + FAL.AI
+========================================================= */
+
+
+/* =========================================================
+   GENERATE VIDEO
 ========================================================= */
 
 async function generateVideo(
+
     prompt,
-    aspectRatio = "9:16"
+
+    aspectRatio = "9:16",
+
+    duration = 35
+
 ) {
 
     const cleanPrompt =
+
         String(
             prompt || ""
         ).trim();
+
+
+    /* -----------------------------------------------------
+       CHECK PROMPT
+    ----------------------------------------------------- */
 
     if (!cleanPrompt) {
 
@@ -869,82 +1392,357 @@ async function generateVideo(
         );
 
         return;
+
     }
+
+
+    /* -----------------------------------------------------
+       CHECK DURATION
+       Gill AI supports 35 or 40 seconds request.
+    ----------------------------------------------------- */
+
+    duration =
+        Number(
+            duration
+        );
+
+
+    if (
+        duration !== 35 &&
+        duration !== 40
+    ) {
+
+        duration = 35;
+
+    }
+
+
+    /* -----------------------------------------------------
+       CHECK ASPECT RATIO
+    ----------------------------------------------------- */
+
+    const allowedRatios = [
+
+        "9:16",
+
+        "16:9",
+
+        "1:1"
+
+    ];
+
+
+    if (
+        !allowedRatios.includes(
+            aspectRatio
+        )
+    ) {
+
+        aspectRatio =
+            "9:16";
+
+    }
+
+
+    /* -----------------------------------------------------
+       SHOW LOADING
+    ----------------------------------------------------- */
+
+    if (videoPreview) {
+
+        videoPreview.innerHTML =
+
+            '<div style="' +
+
+            'padding:18px;' +
+
+            'text-align:center;' +
+
+            'border-radius:18px;' +
+
+            'background:#1e293b;' +
+
+            'margin-top:10px;' +
+
+            '">' +
+
+            '<div style="font-size:35px;">🎬</div>' +
+
+            '<h3>AI Video बनाई जा रही है...</h3>' +
+
+            '<p style="color:#94a3b8;">' +
+
+            'Gill AI → fal.ai' +
+
+            '</p>' +
+
+            '<p>⏳ कृपया प्रतीक्षा करें...</p>' +
+
+            '</div>';
+
+    }
+
+
+    /* -----------------------------------------------------
+       SHOW MESSAGE
+    ----------------------------------------------------- */
+
+    addMessage(
+
+        "🎬 <b>AI Video Generation शुरू...</b><br><br>" +
+
+        "📝 <b>Prompt:</b><br>" +
+
+        escapeHTML(
+            cleanPrompt
+        ) +
+
+        "<br><br>" +
+
+        "⏱️ Duration: <b>" +
+
+        duration +
+
+        " seconds</b><br>" +
+
+        "📐 Ratio: <b>" +
+
+        escapeHTML(
+            aspectRatio
+        ) +
+
+        "</b><br><br>" +
+
+        "⏳ Video तैयार हो रही है...",
+
+        "ai"
+
+    );
+
+
+    /* -----------------------------------------------------
+       FINAL PROMPT
+    ----------------------------------------------------- */
 
     const finalPrompt =
 
         cleanPrompt +
 
-        ". Cinematic realistic video, smooth camera movement, natural lighting, high detail, " +
+        ". Cinematic realistic video, " +
 
-        "vertical " +
+        "smooth camera movement, " +
 
-        aspectRatio +
+        "natural lighting, " +
 
-        " format.";
+        "realistic motion, " +
 
-    saveVideoHistory(
-        finalPrompt
-    );
+        "high detail, " +
 
-    addMessage(
+        "professional quality, " +
 
-        "🎬 <b>Free AI Video Workflow</b><br><br>" +
+        "clean composition.";
 
-        "📝 <b>Your Video Prompt:</b><br><br>" +
 
-        escapeHTML(
-            finalPrompt
-        ) +
+    try {
 
-        "<br><br>" +
+        /* -------------------------------------------------
+           CALL OUR VERCEL API
+        ------------------------------------------------- */
 
-        '<button onclick="copyVideoPrompt(' +
+        const response =
 
-        JSON.stringify(
-            finalPrompt
-        ).replace(
-            /"/g,
-            "&quot;"
-        ) +
+            await fetch(
 
-        ')">' +
+                "/api/video",
 
-        "📋 Prompt Copy करें" +
+                {
 
-        "</button>",
+                    method:
+                        "POST",
 
-        "ai"
+                    headers: {
 
-    );
+                        "Content-Type":
+                            "application/json",
 
-    addMessage(
+                        "Accept":
+                            "application/json"
 
-        "👇 <b>अब Free Video Generator खोलें:</b><br><br>" +
+                    },
 
-        '<a href="https://huggingface.co/spaces?category=video-generation" ' +
+                    body:
 
-        'target="_blank" rel="noopener noreferrer">' +
+                        JSON.stringify({
 
-        "🎬 Free AI Video Generator खोलें" +
+                            prompt:
+                                finalPrompt,
 
-        "</a>",
+                            aspectRatio:
+                                aspectRatio,
 
-        "ai"
+                            duration:
+                                duration
 
-    );
+                        })
+
+                }
+
+            );
+
+
+        /* -------------------------------------------------
+           READ RESPONSE
+        ------------------------------------------------- */
+
+        const raw =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data =
+
+                raw
+                    ? JSON.parse(
+                        raw
+                    )
+                    : {};
+
+        } catch (error) {
+
+            console.error(
+
+                "Video API Raw Response:",
+
+                raw
+
+            );
+
+
+            throw new Error(
+
+                "Video server ने valid JSON नहीं भेजा।"
+
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           API ERROR
+        ------------------------------------------------- */
+
+        if (
+            !response.ok
+        ) {
+
+            throw new Error(
+
+                data?.error ||
+
+                "Video request failed."
+
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           GET STATUS URL
+        ------------------------------------------------- */
+
+        const statusUrl =
+
+            data?.status_url || "";
+
+
+        const responseUrl =
+
+            data?.response_url || "";
+
+
+        if (!statusUrl) {
+
+            throw new Error(
+
+                "fal.ai status URL नहीं मिला।"
+
+            );
+
+        }
+
+
+        /* -------------------------------------------------
+           START STATUS CHECK
+        ------------------------------------------------- */
+
+        await checkVideoStatus(
+
+            statusUrl,
+
+            responseUrl,
+
+            finalPrompt,
+
+            duration
+
+        );
+
+
+    } catch (error) {
+
+        console.error(
+
+            "Gill AI Video Error:",
+
+            error
+
+        );
+
+
+        if (videoPreview) {
+
+            videoPreview.innerHTML =
+
+                "";
+
+        }
+
+
+        addMessage(
+
+            "❌ <b>Video Error:</b><br><br>" +
+
+            escapeHTML(
+
+                error?.message ||
+
+                "Video generation failed."
+
+            ),
+
+            "ai"
+
+        );
+
+    }
 
 }
 
+
 /* =========================================================
-   GLOBAL VIDEO FUNCTION
+   MAKE FUNCTION GLOBAL
 ========================================================= */
 
 window.generateVideo =
     generateVideo;
 
+
 /* =========================================================
-   VIDEO BUTTON
+   AI VIDEO BUTTON
 ========================================================= */
 
 if (videoBtn) {
@@ -963,19 +1761,24 @@ if (videoBtn) {
 
                 );
 
+
             if (
                 !prompt ||
                 !prompt.trim()
             ) {
 
                 return;
+
             }
+
 
             generateVideo(
 
                 prompt.trim(),
 
-                "9:16"
+                "9:16",
+
+                35
 
             );
 
@@ -984,6 +1787,7 @@ if (videoBtn) {
     );
 
 }
+
 
 /* =========================================================
    GENERATE VIDEO BUTTON
@@ -1000,20 +1804,39 @@ if (generateVideoBtn) {
             const prompt =
 
                 videoPrompt
+
                     ? videoPrompt.value.trim()
+
                     : "";
+
 
             const aspectRatio =
 
                 videoAspectRatio
+
                     ? videoAspectRatio.value
+
                     : "9:16";
+
+
+            const duration =
+
+                videoDuration
+
+                    ? Number(
+                        videoDuration.value
+                    )
+
+                    : 35;
+
 
             generateVideo(
 
                 prompt,
 
-                aspectRatio
+                aspectRatio,
+
+                duration
 
             );
 
@@ -1023,8 +1846,9 @@ if (generateVideoBtn) {
 
 }
 
+
 /* =========================================================
-   VIDEO PROMPT ENTER KEY
+   ENTER KEY = GENERATE
 ========================================================= */
 
 if (videoPrompt) {
@@ -1041,17 +1865,39 @@ if (videoPrompt) {
 
                 event.preventDefault();
 
+
+                const prompt =
+
+                    videoPrompt.value.trim();
+
+
                 const aspectRatio =
 
                     videoAspectRatio
+
                         ? videoAspectRatio.value
+
                         : "9:16";
+
+
+                const duration =
+
+                    videoDuration
+
+                        ? Number(
+                            videoDuration.value
+                        )
+
+                        : 35;
+
 
                 generateVideo(
 
-                    videoPrompt.value.trim(),
+                    prompt,
 
-                    aspectRatio
+                    aspectRatio,
+
+                    duration
 
                 );
 
@@ -1063,8 +1909,9 @@ if (videoPrompt) {
 
 }
 
+
 /* =========================================================
-   VIDEO PREVIEW CLEAR
+   CLEAR VIDEO PREVIEW
 ========================================================= */
 
 function clearVideoPreview() {
@@ -1072,19 +1919,23 @@ function clearVideoPreview() {
     if (!videoPreview) {
 
         return;
+
     }
+
 
     videoPreview.innerHTML =
         "";
+
 }
+
 
 window.clearVideoPreview =
     clearVideoPreview;
 
+
 /* =========================================================
-   END OF PART 2
-========================================================= */
-/* =========================================================
+   END OF PART 2/5
+========================================================= */ =========================================================
    Gill AI Ultimate v8
    SCRIPT.JS — PART 3/5
    IMAGE GENERATOR + IMAGE UPLOAD + IMAGE HISTORY
