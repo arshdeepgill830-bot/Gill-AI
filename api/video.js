@@ -1,15 +1,13 @@
 /* =========================================================
    Gill AI Ultimate v8
    api/video.js
-   FAL.AI VIDEO GENERATOR
+   FAL.AI WAN 2.2 5B TEXT TO VIDEO
+   MAX 5 SECOND
 ========================================================= */
 
 export default async function handler(req, res) {
 
-    /* -----------------------------------------------------
-       ONLY POST
-    ----------------------------------------------------- */
-
+    /* ONLY POST */
     if (req.method !== "POST") {
 
         return res.status(405).json({
@@ -19,85 +17,61 @@ export default async function handler(req, res) {
 
     }
 
-
     try {
 
-        /* -------------------------------------------------
-           READ API KEY
-        ------------------------------------------------- */
-
+        /* FAL KEY */
         const apiKey =
             process.env.FAL_KEY;
-
 
         if (!apiKey) {
 
             return res.status(500).json({
-
                 success: false,
-
                 error:
                     "FAL_KEY is missing in Vercel Environment Variables."
-
             });
 
         }
 
+        /* BODY */
+        let body = req.body || {};
 
-        /* -------------------------------------------------
-           READ REQUEST
-        ------------------------------------------------- */
+        if (typeof body === "string") {
 
-        const body =
-            req.body || {};
+            try {
+                body = JSON.parse(body);
+            } catch {
+                body = {};
+            }
 
+        }
 
         const prompt =
             String(
                 body.prompt || ""
             ).trim();
 
-
         let aspectRatio =
             String(
                 body.aspectRatio || "9:16"
             );
 
-
-        let duration =
-            Number(
-                body.duration || 35
-            );
-
-
-        /* -------------------------------------------------
-           VALIDATE PROMPT
-        ------------------------------------------------- */
-
+        /* PROMPT CHECK */
         if (!prompt) {
 
             return res.status(400).json({
-
                 success: false,
-
-                error:
-                    "Video prompt is required."
-
+                error: "Video prompt is required."
             });
 
         }
 
-
-        /* -------------------------------------------------
-           VALIDATE RATIO
-        ------------------------------------------------- */
-
+        /* RATIO CHECK */
         const allowedRatios = [
             "16:9",
             "9:16",
             "1:1"
         ];
-
 
         if (
             !allowedRatios.includes(
@@ -105,91 +79,90 @@ export default async function handler(req, res) {
             )
         ) {
 
-            aspectRatio =
-                "9:16";
+            aspectRatio = "9:16";
 
         }
 
+        /*
+           Wan 2.2 5B:
+           Maximum 5 seconds.
+           121 frames at 24 FPS is about 5 seconds.
+        */
 
-        /* -------------------------------------------------
-           VALIDATE DURATION
-           
-           IMPORTANT:
-           Wan 2.2 does not natively create
-           35/40 seconds in one request.
-
-           We accept 35/40 from Gill AI,
-           but generate a supported clip.
-        ------------------------------------------------- */
-
-        if (
-            duration !== 35 &&
-            duration !== 40
-        ) {
-
-            duration = 35;
-
-        }
-
-
-        /* -------------------------------------------------
-           FAL.AI MODEL
-        ------------------------------------------------- */
+        const model =
+            "fal-ai/wan/v2.2-5b/text-to-video";
 
         const endpoint =
             "https://queue.fal.run/" +
-            "fal-ai/wan/v2.2-5b/text-to-video";
+            model;
 
+        /* FAL INPUT */
+        const falInput = {
 
-        /* -------------------------------------------------
-           REQUEST TO FAL.AI
-        ------------------------------------------------- */
+            prompt: prompt,
 
+            num_frames: 121,
+
+            frames_per_second: 24,
+
+            resolution: "720p",
+
+            aspect_ratio: aspectRatio,
+
+            enable_safety_checker: true,
+
+            enable_output_safety_checker: true
+
+        };
+
+        console.log(
+            "Sending video request to fal.ai..."
+        );
+
+        /* FAL REQUEST */
         const falResponse =
             await fetch(
                 endpoint,
                 {
-
                     method: "POST",
 
                     headers: {
-
                         "Authorization":
                             "Key " + apiKey,
 
                         "Content-Type":
-                            "application/json"
+                            "application/json",
 
+                        "Accept":
+                            "application/json"
                     },
 
                     body:
-                        JSON.stringify({
-
-                            prompt:
-                                prompt,
-
-                            aspect_ratio:
-                                aspectRatio,
-
-                            resolution:
-                                "720p"
-
-                        })
-
+                        JSON.stringify(
+                            falInput
+                        )
                 }
             );
 
-
-        /* -------------------------------------------------
-           READ RESPONSE SAFELY
-        ------------------------------------------------- */
-
+        /* RAW RESPONSE */
         const raw =
             await falResponse.text();
 
+        console.log(
+            "FAL STATUS:",
+            falResponse.status
+        );
 
-        let data;
+        console.log(
+            "FAL RESPONSE:",
+            raw.substring(
+                0,
+                3000
+            )
+        );
 
+        /* JSON */
+        let data = {};
 
         try {
 
@@ -198,13 +171,7 @@ export default async function handler(req, res) {
                     ? JSON.parse(raw)
                     : {};
 
-        } catch (parseError) {
-
-            console.error(
-                "FAL RAW RESPONSE:",
-                raw
-            );
-
+        } catch {
 
             return res.status(502).json({
 
@@ -213,30 +180,21 @@ export default async function handler(req, res) {
                 error:
                     "fal.ai ने valid JSON response नहीं भेजा।",
 
+                fal_status:
+                    falResponse.status,
+
                 details:
                     raw.substring(
                         0,
-                        500
+                        1000
                     )
 
             });
 
         }
 
-
-        /* -------------------------------------------------
-           FAL ERROR
-        ------------------------------------------------- */
-
-        if (
-            !falResponse.ok
-        ) {
-
-            console.error(
-                "FAL API ERROR:",
-                data
-            );
-
+        /* FAL ERROR */
+        if (!falResponse.ok) {
 
             return res.status(
                 falResponse.status
@@ -247,17 +205,47 @@ export default async function handler(req, res) {
                 error:
                     data?.detail ||
                     data?.error ||
-                    "fal.ai video request failed."
+                    data?.message ||
+                    "fal.ai video request failed.",
+
+                fal_response:
+                    data
 
             });
 
         }
 
+        /* QUEUE DATA */
+        const requestId =
+            data?.request_id || "";
 
-        /* -------------------------------------------------
-           RETURN QUEUE INFORMATION
-        ------------------------------------------------- */
+        const statusUrl =
+            data?.status_url || "";
 
+        const responseUrl =
+            data?.response_url || "";
+
+        /* CHECK */
+        if (
+            !requestId ||
+            !statusUrl
+        ) {
+
+            return res.status(502).json({
+
+                success: false,
+
+                error:
+                    "fal.ai ने request स्वीकार की लेकिन status URL नहीं मिला।",
+
+                fal_response:
+                    data
+
+            });
+
+        }
+
+        /* SUCCESS */
         return res.status(200).json({
 
             success: true,
@@ -266,36 +254,28 @@ export default async function handler(req, res) {
                 "Video generation request submitted.",
 
             request_id:
-                data?.request_id ||
-                null,
+                requestId,
 
             status_url:
-                data?.status_url ||
-                null,
+                statusUrl,
 
             response_url:
-                data?.response_url ||
-                null,
-
-            duration:
-                duration,
-
-            requested_duration:
-                duration,
+                responseUrl,
 
             aspectRatio:
-                aspectRatio
+                aspectRatio,
+
+            duration:
+                5
 
         });
-
 
     } catch (error) {
 
         console.error(
-            "Gill AI FAL Video Error:",
+            "Gill AI Video Error:",
             error
         );
-
 
         return res.status(500).json({
 
