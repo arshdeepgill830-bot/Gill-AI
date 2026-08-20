@@ -1,13 +1,16 @@
 /* =========================================================
    Gill AI Ultimate v8
    api/video.js
-   FAL.AI WAN 2.2 5B TEXT TO VIDEO
-   MAX 5 SECOND
+   HUGGING FACE INFERENCE PROVIDERS
+   TEXT TO VIDEO
 ========================================================= */
 
 export default async function handler(req, res) {
 
-    /* ONLY POST */
+    /* -----------------------------------------------------
+       ONLY POST
+    ----------------------------------------------------- */
+
     if (req.method !== "POST") {
 
         return res.status(405).json({
@@ -19,21 +22,27 @@ export default async function handler(req, res) {
 
     try {
 
-        /* FAL KEY */
+        /* -------------------------------------------------
+           HUGGING FACE TOKEN
+        ------------------------------------------------- */
+
         const apiKey =
-            process.env.FAL_KEY;
+            process.env.HF_TOKEN;
 
         if (!apiKey) {
 
             return res.status(500).json({
                 success: false,
                 error:
-                    "FAL_KEY is missing in Vercel Environment Variables."
+                    "HF_TOKEN is missing in Vercel Environment Variables."
             });
 
         }
 
-        /* BODY */
+        /* -------------------------------------------------
+           READ BODY
+        ------------------------------------------------- */
+
         let body = req.body || {};
 
         if (typeof body === "string") {
@@ -56,20 +65,27 @@ export default async function handler(req, res) {
                 body.aspectRatio || "9:16"
             );
 
-        /* PROMPT CHECK */
+        /* -------------------------------------------------
+           PROMPT CHECK
+        ------------------------------------------------- */
+
         if (!prompt) {
 
             return res.status(400).json({
                 success: false,
-                error: "Video prompt is required."
+                error:
+                    "Video prompt is required."
             });
 
         }
 
-        /* RATIO CHECK */
+        /* -------------------------------------------------
+           RATIO CHECK
+        ------------------------------------------------- */
+
         const allowedRatios = [
-            "16:9",
             "9:16",
+            "16:9",
             "1:1"
         ];
 
@@ -83,108 +99,185 @@ export default async function handler(req, res) {
 
         }
 
-        /*
-           Wan 2.2 5B:
-           Maximum 5 seconds.
-           121 frames at 24 FPS is about 5 seconds.
-        */
+        /* -------------------------------------------------
+           MODEL
+           
+           Hugging Face currently documents this model
+           for text-to-video through Inference Providers.
+        ------------------------------------------------- */
 
         const model =
-            "fal-ai/wan/v2.2-5b/text-to-video";
+            "Wan-AI/Wan2.2-TI2V-5B";
 
         const endpoint =
-            "https://queue.fal.run/" +
+            "https://router.huggingface.co/hf-inference/models/" +
             model;
 
-        /* FAL INPUT */
-        const falInput = {
+        /* -------------------------------------------------
+           REQUEST
+        ------------------------------------------------- */
 
-            prompt: prompt,
-
-            num_frames: 121,
-
-            frames_per_second: 24,
-
-            resolution: "720p",
-
-            aspect_ratio: aspectRatio,
-
-            enable_safety_checker: true,
-
-            enable_output_safety_checker: true
-
-        };
-
-        console.log(
-            "Sending video request to fal.ai..."
-        );
-
-        /* FAL REQUEST */
-        const falResponse =
+        const hfResponse =
             await fetch(
                 endpoint,
                 {
+
                     method: "POST",
 
                     headers: {
+
                         "Authorization":
-                            "Key " + apiKey,
+                            "Bearer " + apiKey,
 
                         "Content-Type":
                             "application/json",
 
                         "Accept":
-                            "application/json"
+                            "video/mp4"
+
                     },
 
                     body:
-                        JSON.stringify(
-                            falInput
-                        )
+                        JSON.stringify({
+
+                            inputs:
+                                prompt,
+
+                            parameters: {
+
+                                num_frames:
+                                    121,
+
+                                num_inference_steps:
+                                    25,
+
+                                guidance_scale:
+                                    5
+
+                            }
+
+                        })
+
                 }
             );
 
-        /* RAW RESPONSE */
-        const raw =
-            await falResponse.text();
+        /* -------------------------------------------------
+           READ RESPONSE
+        ------------------------------------------------- */
+
+        const contentType =
+            hfResponse.headers.get(
+                "content-type"
+            ) || "";
+
+        const buffer =
+            await hfResponse.arrayBuffer();
 
         console.log(
-            "FAL STATUS:",
-            falResponse.status
+            "HUGGING FACE STATUS:",
+            hfResponse.status
         );
 
         console.log(
-            "FAL RESPONSE:",
-            raw.substring(
-                0,
-                3000
+            "HUGGING FACE CONTENT TYPE:",
+            contentType
+        );
+
+        /* -------------------------------------------------
+           ERROR RESPONSE
+        ------------------------------------------------- */
+
+        if (!hfResponse.ok) {
+
+            let errorText = "";
+
+            try {
+
+                errorText =
+                    new TextDecoder()
+                        .decode(buffer);
+
+            } catch {
+
+                errorText =
+                    "Unknown Hugging Face error.";
+
+            }
+
+            let errorData = {};
+
+            try {
+
+                errorData =
+                    JSON.parse(
+                        errorText
+                    );
+
+            } catch {
+
+                errorData = {};
+
+            }
+
+            return res.status(
+                hfResponse.status
+            ).json({
+
+                success: false,
+
+                error:
+                    errorData?.error ||
+                    errorData?.message ||
+                    errorText.substring(
+                        0,
+                        1000
+                    ) ||
+                    "Hugging Face video generation failed.",
+
+                status:
+                    hfResponse.status
+
+            });
+
+        }
+
+        /* -------------------------------------------------
+           CHECK VIDEO RESPONSE
+        ------------------------------------------------- */
+
+        if (
+            !contentType.includes(
+                "video"
             )
-        );
+        ) {
 
-        /* JSON */
-        let data = {};
+            let text = "";
 
-        try {
+            try {
 
-            data =
-                raw
-                    ? JSON.parse(raw)
-                    : {};
+                text =
+                    new TextDecoder()
+                        .decode(buffer);
 
-        } catch {
+            } catch {
+
+                text =
+                    "";
+
+            }
 
             return res.status(502).json({
 
                 success: false,
 
                 error:
-                    "fal.ai ने valid JSON response नहीं भेजा।",
+                    "Hugging Face ने video response नहीं दिया।",
 
-                fal_status:
-                    falResponse.status,
+                content_type:
+                    contentType,
 
                 details:
-                    raw.substring(
+                    text.substring(
                         0,
                         1000
                     )
@@ -193,87 +286,84 @@ export default async function handler(req, res) {
 
         }
 
-        /* FAL ERROR */
-        if (!falResponse.ok) {
+        /* -------------------------------------------------
+           CONVERT VIDEO TO DATA URL
+        ------------------------------------------------- */
 
-            return res.status(
-                falResponse.status
-            ).json({
+        const bytes =
+            new Uint8Array(
+                buffer
+            );
 
-                success: false,
+        let binary = "";
 
-                error:
-                    data?.detail ||
-                    data?.error ||
-                    data?.message ||
-                    "fal.ai video request failed.",
+        const chunkSize =
+            0x8000;
 
-                fal_response:
-                    data
-
-            });
-
-        }
-
-        /* QUEUE DATA */
-        const requestId =
-            data?.request_id || "";
-
-        const statusUrl =
-            data?.status_url || "";
-
-        const responseUrl =
-            data?.response_url || "";
-
-        /* CHECK */
-        if (
-            !requestId ||
-            !statusUrl
+        for (
+            let i = 0;
+            i < bytes.length;
+            i += chunkSize
         ) {
 
-            return res.status(502).json({
-
-                success: false,
-
-                error:
-                    "fal.ai ने request स्वीकार की लेकिन status URL नहीं मिला।",
-
-                fal_response:
-                    data
-
-            });
+            binary += String.fromCharCode(
+                ...bytes.subarray(
+                    i,
+                    Math.min(
+                        i + chunkSize,
+                        bytes.length
+                    )
+                )
+            );
 
         }
 
-        /* SUCCESS */
+        const base64 =
+            Buffer
+                .from(
+                    binary,
+                    "binary"
+                )
+                .toString(
+                    "base64"
+                );
+
+        const videoUrl =
+            "data:video/mp4;base64," +
+            base64;
+
+        /* -------------------------------------------------
+           SUCCESS
+        ------------------------------------------------- */
+
         return res.status(200).json({
 
             success: true,
 
             message:
-                "Video generation request submitted.",
+                "Video generated successfully.",
 
-            request_id:
-                requestId,
+            video_url:
+                videoUrl,
 
-            status_url:
-                statusUrl,
-
-            response_url:
-                responseUrl,
+            videoUrl:
+                videoUrl,
 
             aspectRatio:
                 aspectRatio,
 
             duration:
-                5
+                5,
+
+            model:
+                model
 
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI Video Error:",
+            "Gill AI Hugging Face Video Error:",
             error
         );
 
@@ -289,4 +379,4 @@ export default async function handler(req, res) {
 
     }
 
-}
+} 
