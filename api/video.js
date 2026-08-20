@@ -1,8 +1,8 @@
 /* =========================================================
    Gill AI Ultimate v8
    api/video.js
-   HUGGING FACE INFERENCE PROVIDERS
-   TEXT TO VIDEO
+   REPLICATE VIDEO GENERATOR
+   WAN 2.1 - 1.3B
 ========================================================= */
 
 export default async function handler(req, res) {
@@ -23,18 +23,18 @@ export default async function handler(req, res) {
     try {
 
         /* -------------------------------------------------
-           HUGGING FACE TOKEN
+           REPLICATE TOKEN
         ------------------------------------------------- */
 
-        const apiKey =
-            process.env.HF_TOKEN;
+        const apiToken =
+            process.env.REPLICATE_API_TOKEN;
 
-        if (!apiKey) {
+        if (!apiToken) {
 
             return res.status(500).json({
                 success: false,
                 error:
-                    "HF_TOKEN is missing in Vercel Environment Variables."
+                    "REPLICATE_API_TOKEN is missing in Vercel Environment Variables."
             });
 
         }
@@ -43,14 +43,20 @@ export default async function handler(req, res) {
            READ BODY
         ------------------------------------------------- */
 
-        let body = req.body || {};
+        let body =
+            req.body || {};
 
         if (typeof body === "string") {
 
             try {
-                body = JSON.parse(body);
+
+                body =
+                    JSON.parse(body);
+
             } catch {
+
                 body = {};
+
             }
 
         }
@@ -62,7 +68,8 @@ export default async function handler(req, res) {
 
         let aspectRatio =
             String(
-                body.aspectRatio || "9:16"
+                body.aspectRatio ||
+                "9:16"
             );
 
         /* -------------------------------------------------
@@ -80,7 +87,11 @@ export default async function handler(req, res) {
         }
 
         /* -------------------------------------------------
-           RATIO CHECK
+           ASPECT RATIO
+           WAN MODEL SUPPORTS:
+           16:9
+           9:16
+           1:1
         ------------------------------------------------- */
 
         const allowedRatios = [
@@ -95,29 +106,66 @@ export default async function handler(req, res) {
             )
         ) {
 
-            aspectRatio = "9:16";
+            aspectRatio =
+                "9:16";
 
         }
 
         /* -------------------------------------------------
-           MODEL
-           
-           Hugging Face currently documents this model
-           for text-to-video through Inference Providers.
+           REPLICATE MODEL
         ------------------------------------------------- */
 
         const model =
-            "Wan-AI/Wan2.2-TI2V-5B";
+            "wan-video/wan-2.1-1.3b";
 
         const endpoint =
-            "https://router.huggingface.co/hf-inference/models/" +
-            model;
+            "https://api.replicate.com/v1/models/" +
+            model +
+            "/predictions";
 
         /* -------------------------------------------------
-           REQUEST
+           VIDEO INPUT
+        -------------------------------------------------
+
+           81 frames at 16fps ≈ 5 seconds
         ------------------------------------------------- */
 
-        const hfResponse =
+        const input = {
+
+            prompt:
+                prompt,
+
+            frame_num:
+                81,
+
+            resolution:
+                "480p",
+
+            aspect_ratio:
+                aspectRatio,
+
+            sample_steps:
+                30,
+
+            sample_guide_scale:
+                6
+
+        };
+
+        console.log(
+            "REPLICATE VIDEO REQUEST:",
+            {
+                model,
+                aspectRatio,
+                prompt
+            }
+        );
+
+        /* -------------------------------------------------
+           CREATE PREDICTION
+        ------------------------------------------------- */
+
+        const replicateResponse =
             await fetch(
                 endpoint,
                 {
@@ -127,35 +175,30 @@ export default async function handler(req, res) {
                     headers: {
 
                         "Authorization":
-                            "Bearer " + apiKey,
+                            "Bearer " +
+                            apiToken,
 
                         "Content-Type":
                             "application/json",
 
                         "Accept":
-                            "video/mp4"
+                            "application/json",
+
+                        /*
+                           Wait up to 60 seconds.
+                           If video is not finished,
+                           Replicate returns a prediction
+                           that can be checked later.
+                        */
+
+                        "Prefer":
+                            "wait=60"
 
                     },
 
                     body:
                         JSON.stringify({
-
-                            inputs:
-                                prompt,
-
-                            parameters: {
-
-                                num_frames:
-                                    121,
-
-                                num_inference_steps:
-                                    25,
-
-                                guidance_scale:
-                                    5
-
-                            }
-
+                            input
                         })
 
                 }
@@ -165,119 +208,49 @@ export default async function handler(req, res) {
            READ RESPONSE
         ------------------------------------------------- */
 
-        const contentType =
-            hfResponse.headers.get(
-                "content-type"
-            ) || "";
-
-        const buffer =
-            await hfResponse.arrayBuffer();
+        const raw =
+            await replicateResponse.text();
 
         console.log(
-            "HUGGING FACE STATUS:",
-            hfResponse.status
+            "REPLICATE STATUS:",
+            replicateResponse.status
         );
 
         console.log(
-            "HUGGING FACE CONTENT TYPE:",
-            contentType
-        );
-
-        /* -------------------------------------------------
-           ERROR RESPONSE
-        ------------------------------------------------- */
-
-        if (!hfResponse.ok) {
-
-            let errorText = "";
-
-            try {
-
-                errorText =
-                    new TextDecoder()
-                        .decode(buffer);
-
-            } catch {
-
-                errorText =
-                    "Unknown Hugging Face error.";
-
-            }
-
-            let errorData = {};
-
-            try {
-
-                errorData =
-                    JSON.parse(
-                        errorText
-                    );
-
-            } catch {
-
-                errorData = {};
-
-            }
-
-            return res.status(
-                hfResponse.status
-            ).json({
-
-                success: false,
-
-                error:
-                    errorData?.error ||
-                    errorData?.message ||
-                    errorText.substring(
-                        0,
-                        1000
-                    ) ||
-                    "Hugging Face video generation failed.",
-
-                status:
-                    hfResponse.status
-
-            });
-
-        }
-
-        /* -------------------------------------------------
-           CHECK VIDEO RESPONSE
-        ------------------------------------------------- */
-
-        if (
-            !contentType.includes(
-                "video"
+            "REPLICATE RESPONSE:",
+            raw.substring(
+                0,
+                3000
             )
-        ) {
+        );
 
-            let text = "";
+        /* -------------------------------------------------
+           PARSE JSON
+        ------------------------------------------------- */
 
-            try {
+        let data = {};
 
-                text =
-                    new TextDecoder()
-                        .decode(buffer);
+        try {
 
-            } catch {
+            data =
+                raw
+                    ? JSON.parse(raw)
+                    : {};
 
-                text =
-                    "";
-
-            }
+        } catch {
 
             return res.status(502).json({
 
                 success: false,
 
                 error:
-                    "Hugging Face ने video response नहीं दिया।",
+                    "Replicate ने valid JSON response नहीं भेजा।",
 
-                content_type:
-                    contentType,
+                status:
+                    replicateResponse.status,
 
                 details:
-                    text.substring(
+                    raw.substring(
                         0,
                         1000
                     )
@@ -287,67 +260,237 @@ export default async function handler(req, res) {
         }
 
         /* -------------------------------------------------
-           CONVERT VIDEO TO DATA URL
+           REPLICATE API ERROR
         ------------------------------------------------- */
 
-        const bytes =
-            new Uint8Array(
-                buffer
-            );
-
-        let binary = "";
-
-        const chunkSize =
-            0x8000;
-
-        for (
-            let i = 0;
-            i < bytes.length;
-            i += chunkSize
+        if (
+            !replicateResponse.ok
         ) {
 
-            binary += String.fromCharCode(
-                ...bytes.subarray(
-                    i,
-                    Math.min(
-                        i + chunkSize,
-                        bytes.length
-                    )
-                )
+            console.error(
+                "REPLICATE ERROR:",
+                data
             );
+
+            return res.status(
+                replicateResponse.status
+            ).json({
+
+                success: false,
+
+                error:
+                    data?.detail ||
+                    data?.error ||
+                    data?.message ||
+                    "Replicate video request failed.",
+
+                status:
+                    replicateResponse.status,
+
+                replicate_response:
+                    data
+
+            });
 
         }
 
-        const base64 =
-            Buffer
-                .from(
-                    binary,
-                    "binary"
-                )
-                .toString(
-                    "base64"
-                );
+        /* -------------------------------------------------
+           PREDICTION STATUS
+        ------------------------------------------------- */
 
-        const videoUrl =
-            "data:video/mp4;base64," +
-            base64;
+        const status =
+            String(
+                data?.status ||
+                ""
+            ).toLowerCase();
+
+        const predictionId =
+            data?.id ||
+            "";
+
+        const getUrl =
+            data?.urls?.get ||
+            "";
 
         /* -------------------------------------------------
-           SUCCESS
+           FAILED
+        ------------------------------------------------- */
+
+        if (
+            status ===
+            "failed"
+        ) {
+
+            return res.status(502).json({
+
+                success: false,
+
+                error:
+                    data?.error ||
+                    "Replicate video generation failed.",
+
+                prediction_id:
+                    predictionId
+
+            });
+
+        }
+
+        /* -------------------------------------------------
+           CANCELED
+        ------------------------------------------------- */
+
+        if (
+            status ===
+            "canceled"
+        ) {
+
+            return res.status(502).json({
+
+                success: false,
+
+                error:
+                    "Replicate video generation was canceled.",
+
+                prediction_id:
+                    predictionId
+
+            });
+
+        }
+
+        /* -------------------------------------------------
+           GET VIDEO OUTPUT
+        ------------------------------------------------- */
+
+        let videoUrl = "";
+
+        const output =
+            data?.output;
+
+        if (
+            typeof output ===
+            "string"
+        ) {
+
+            videoUrl =
+                output;
+
+        }
+
+        else if (
+            Array.isArray(output)
+        ) {
+
+            const first =
+                output[0];
+
+            if (
+                typeof first ===
+                "string"
+            ) {
+
+                videoUrl =
+                    first;
+
+            }
+
+            else if (
+                first?.url
+            ) {
+
+                videoUrl =
+                    String(
+                        first.url
+                    );
+
+            }
+
+        }
+
+        else if (
+            output?.url
+        ) {
+
+            videoUrl =
+                String(
+                    output.url
+                );
+
+        }
+
+        /* -------------------------------------------------
+           COMPLETED WITH VIDEO
+        ------------------------------------------------- */
+
+        if (
+            videoUrl &&
+            (
+                status ===
+                "succeeded" ||
+                status ===
+                "successful" ||
+                !status
+            )
+        ) {
+
+            return res.status(200).json({
+
+                success:
+                    true,
+
+                status:
+                    "COMPLETED",
+
+                message:
+                    "Video generated successfully.",
+
+                video_url:
+                    videoUrl,
+
+                videoUrl:
+                    videoUrl,
+
+                prediction_id:
+                    predictionId,
+
+                aspectRatio:
+                    aspectRatio,
+
+                duration:
+                    5,
+
+                model:
+                    model
+
+            });
+
+        }
+
+        /* -------------------------------------------------
+           STILL PROCESSING
         ------------------------------------------------- */
 
         return res.status(200).json({
 
-            success: true,
+            success:
+                true,
+
+            status:
+                status ||
+                "processing",
 
             message:
-                "Video generated successfully.",
+                "Video generation started.",
 
-            video_url:
-                videoUrl,
+            prediction_id:
+                predictionId,
 
-            videoUrl:
-                videoUrl,
+            status_url:
+                getUrl,
+
+            response_url:
+                getUrl,
 
             aspectRatio:
                 aspectRatio,
@@ -363,7 +506,7 @@ export default async function handler(req, res) {
     } catch (error) {
 
         console.error(
-            "Gill AI Hugging Face Video Error:",
+            "Gill AI Replicate Video Error:",
             error
         );
 
@@ -379,4 +522,4 @@ export default async function handler(req, res) {
 
     }
 
-} 
+}
