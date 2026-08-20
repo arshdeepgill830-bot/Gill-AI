@@ -502,9 +502,217 @@ if (settingsBtn) {
 
 /* =========================================================
    CHAT FUNCTION
+============================================================*\
+/* =========================================================
+   FIXED CHAT FUNCTION
+   Gill AI Ultimate v8
 ========================================================= */
 
 async function sendMessage() {
+
+    if (!userInput) return;
+
+    const text =
+        userInput.value.trim();
+
+    if (!text) return;
+
+    // User message
+    addMessage(
+        escapeHTML(text),
+        "user"
+    );
+
+    userInput.value = "";
+
+    // Loading message
+    const loading =
+        addMessage(
+            "⏳ Gill AI सोच रहा है...",
+            "ai"
+        );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/chat",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        message: text
+                    })
+                }
+            );
+
+        // Always read raw response first
+        const raw =
+            await response.text();
+
+        console.log(
+            "CHAT HTTP STATUS:",
+            response.status
+        );
+
+        console.log(
+            "CHAT RAW RESPONSE:",
+            raw
+        );
+
+        let data = {};
+
+        try {
+
+            data =
+                raw
+                    ? JSON.parse(raw)
+                    : {};
+
+        } catch (error) {
+
+            throw new Error(
+                "AI server ने valid JSON नहीं भेजा।"
+            );
+
+        }
+
+        // Backend error
+        if (!response.ok) {
+
+            throw new Error(
+                data?.error ||
+                "AI request failed."
+            );
+
+        }
+
+        /*
+         * Gill AI backend normally returns:
+         *
+         * {
+         *   success: true,
+         *   reply: "..."
+         * }
+         */
+
+        let reply =
+            data?.reply;
+
+        /*
+         * Compatibility with other response formats
+         */
+
+        if (!reply) {
+
+            reply =
+                data?.message;
+
+        }
+
+        if (!reply) {
+
+            reply =
+                data?.choices?.[0]?.message?.content;
+
+        }
+
+        if (!reply) {
+
+            reply =
+                data?.output?.text;
+
+        }
+
+        if (!reply) {
+
+            reply =
+                data?.output;
+
+        }
+
+        /*
+         * If API returned an object,
+         * convert it safely to readable text.
+         */
+
+        if (
+            reply &&
+            typeof reply === "object"
+        ) {
+
+            reply =
+                reply.text ||
+                reply.content ||
+                reply.message ||
+                JSON.stringify(reply);
+
+        }
+
+        reply =
+            String(
+                reply || ""
+            ).trim();
+
+        if (!reply) {
+
+            throw new Error(
+                "AI response में कोई reply नहीं मिला।"
+            );
+
+        }
+
+        /*
+         * Remove loading message
+         * and display actual AI reply.
+         */
+
+        if (loading) {
+
+            loading.innerHTML =
+                escapeHTML(reply)
+                    .replace(
+                        /\n/g,
+                        "<br>"
+                    );
+
+        }
+
+        // Save history
+        saveHistory(
+            text,
+            reply
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Gill AI Chat Error:",
+            error
+        );
+
+        if (loading) {
+
+            loading.innerHTML =
+                "❌ <b>AI Error:</b><br><br>" +
+                escapeHTML(
+                    error?.message ||
+                    "AI request failed."
+                );
+
+        }
+
+    }
+
+}
 
     if (!userInput) return;
 
