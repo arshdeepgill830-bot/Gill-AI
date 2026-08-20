@@ -54,7 +54,7 @@ function escapeHTML(value) {
 
 function addMessage(text, type = "ai") {
 
-    if (!chatBox) return;
+    if (!chatBox) return null;
 
     const message =
         document.createElement("div");
@@ -63,9 +63,12 @@ function addMessage(text, type = "ai") {
         "message " +
         (type === "user" ? "user" : "ai");
 
-    message.innerHTML = text;
+    message.innerHTML =
+        text;
 
-    chatBox.appendChild(message);
+    chatBox.appendChild(
+        message
+    );
 
     chatBox.scrollTop =
         chatBox.scrollHeight;
@@ -114,13 +117,10 @@ function saveHistory(userText, aiText) {
         });
 
         localStorage.setItem(
-
             "gillAIHistory",
-
             JSON.stringify(
                 history.slice(-100)
             )
-
         );
 
     } catch (error) {
@@ -153,15 +153,17 @@ function setActiveButton(activeButton) {
 
     ];
 
-    buttons.forEach(button => {
+    buttons.forEach(
+        (button) => {
 
-        if (!button) return;
+            if (!button) return;
 
-        button.classList.remove(
-            "active"
-        );
+            button.classList.remove(
+                "active"
+            );
 
-    });
+        }
+    );
 
     if (activeButton) {
 
@@ -180,7 +182,9 @@ function setActiveButton(activeButton) {
 
 function showHome() {
 
-    setActiveButton(homeBtn);
+    setActiveButton(
+        homeBtn
+    );
 
     removeVideoPanel();
 
@@ -209,7 +213,9 @@ function showHome() {
 
 function showChat() {
 
-    setActiveButton(chatBtn);
+    setActiveButton(
+        chatBtn
+    );
 
     removeVideoPanel();
 
@@ -228,7 +234,9 @@ function showChat() {
 
 function showImage() {
 
-    setActiveButton(imageBtn);
+    setActiveButton(
+        imageBtn
+    );
 
     removeVideoPanel();
 
@@ -251,7 +259,9 @@ function showImage() {
 
 function showEditor() {
 
-    setActiveButton(editorBtn);
+    setActiveButton(
+        editorBtn
+    );
 
     removeVideoPanel();
 
@@ -274,7 +284,9 @@ function showEditor() {
 
 function showHistory() {
 
-    setActiveButton(historyBtn);
+    setActiveButton(
+        historyBtn
+    );
 
     removeVideoPanel();
 
@@ -318,46 +330,48 @@ function showHistory() {
         .slice()
         .reverse()
         .slice(0, 20)
-        .forEach(item => {
+        .forEach(
+            (item) => {
 
-            html +=
+                html +=
 
-                "<div style=\"" +
+                    "<div style=\"" +
 
-                "padding:10px;" +
-                "margin:6px 0;" +
-                "border-radius:12px;" +
-                "background:#1e293b;" +
+                    "padding:10px;" +
+                    "margin:6px 0;" +
+                    "border-radius:12px;" +
+                    "background:#1e293b;" +
 
-                "\">" +
+                    "\">" +
 
-                "<b>👤 " +
+                    "<b>👤 " +
 
-                escapeHTML(
-                    item.user
-                ) +
+                    escapeHTML(
+                        item.user
+                    ) +
 
-                "</b><br>" +
+                    "</b><br>" +
 
-                "<span>" +
+                    "<span>" +
 
-                escapeHTML(
-                    item.ai
-                ) +
+                    escapeHTML(
+                        item.ai
+                    ) +
 
-                "</span><br>" +
+                    "</span><br>" +
 
-                "<small style=\"opacity:.6\">" +
+                    "<small style=\"opacity:.6\">" +
 
-                escapeHTML(
-                    item.time
-                ) +
+                    escapeHTML(
+                        item.time
+                    ) +
 
-                "</small>" +
+                    "</small>" +
 
-                "</div>";
+                    "</div>";
 
-        });
+            }
+        );
 
     addMessage(
         html,
@@ -373,7 +387,9 @@ function showHistory() {
 
 function showSettings() {
 
-    setActiveButton(settingsBtn);
+    setActiveButton(
+        settingsBtn
+    );
 
     removeVideoPanel();
 
@@ -397,7 +413,7 @@ function showSettings() {
 
 
 /* =========================================================
-   MENU BUTTON
+   MENU
 ========================================================= */
 
 if (menuBtn) {
@@ -407,7 +423,9 @@ if (menuBtn) {
         function () {
 
             const nav =
-                document.querySelector("nav");
+                document.querySelector(
+                    "nav"
+                );
 
             if (!nav) return;
 
@@ -467,7 +485,11 @@ if (videoBtn) {
 
     videoBtn.addEventListener(
         "click",
-        createVideoPanel
+        function () {
+
+            createVideoPanel();
+
+        }
     );
 
 }
@@ -501,196 +523,242 @@ if (settingsBtn) {
 
 
 /* =========================================================
-   CHAT FUNCTION
-============================================================*\
+   CHAT API
+========================================================= */
+
+async function aiReply(message) {
+
+    const response =
+        await fetch(
+            "/api/chat",
+            {
+
+                method:
+                    "POST",
+
+                headers: {
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json"
+
+                },
+
+                body:
+                    JSON.stringify({
+
+                        message:
+                            message
+
+                    })
+
+            }
+        );
+
+
+    const raw =
+        await response.text();
+
+
+    console.log(
+        "Gill AI API STATUS:",
+        response.status
+    );
+
+
+    console.log(
+        "Gill AI API RESPONSE:",
+        raw
+    );
+
+
+    let data = {};
+
+    try {
+
+        data =
+            raw
+                ? JSON.parse(raw)
+                : {};
+
+    } catch (error) {
+
+        throw new Error(
+            "AI server ने valid JSON नहीं भेजा। /api/chat check करें।"
+        );
+
+    }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data?.error ||
+            "AI request failed."
+        );
+
+    }
+
+
+    /*
+       Main response format:
+       { success:true, reply:"..." }
+    */
+
+    let reply =
+        data?.reply;
+
+
+    /*
+       Compatibility
+    */
+
+    if (!reply) {
+
+        reply =
+            data?.message;
+
+    }
+
+
+    if (!reply) {
+
+        reply =
+            data?.choices?.[0]?.message?.content;
+
+    }
+
+
+    if (!reply) {
+
+        reply =
+            data?.output?.text;
+
+    }
+
+
+    if (!reply) {
+
+        reply =
+            data?.output;
+
+    }
+
+
+    /*
+       Safety-style response compatibility
+    */
+
+    if (
+        data?.result &&
+        typeof data.result ===
+        "string"
+    ) {
+
+        reply =
+            data.result;
+
+    }
+
+
+    if (
+        reply &&
+        typeof reply ===
+        "object"
+    ) {
+
+        reply =
+            reply.text ||
+            reply.content ||
+            reply.message ||
+            JSON.stringify(
+                reply
+            );
+
+    }
+
+
+    reply =
+        String(
+            reply || ""
+        ).trim();
+
+
+    if (!reply) {
+
+        throw new Error(
+            "AI response में reply नहीं मिला।"
+        );
+
+    }
+
+
+    return reply;
+
+}
+
+
 /* =========================================================
-   FIXED CHAT FUNCTION
-   Gill AI Ultimate v8
+   SEND MESSAGE
 ========================================================= */
 
 async function sendMessage() {
 
     if (!userInput) return;
 
+
     const text =
         userInput.value.trim();
 
+
     if (!text) return;
 
-    // User message
+
     addMessage(
         escapeHTML(text),
         "user"
     );
 
-    userInput.value = "";
 
-    // Loading message
+    userInput.value =
+        "";
+
+
     const loading =
         addMessage(
             "⏳ Gill AI सोच रहा है...",
             "ai"
         );
 
+
     try {
 
-        const response =
-            await fetch(
-                "/api/chat",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json",
-
-                        "Accept":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        message: text
-                    })
-                }
+        const reply =
+            await aiReply(
+                text
             );
 
-        // Always read raw response first
-        const raw =
-            await response.text();
-
-        console.log(
-            "CHAT HTTP STATUS:",
-            response.status
-        );
-
-        console.log(
-            "CHAT RAW RESPONSE:",
-            raw
-        );
-
-        let data = {};
-
-        try {
-
-            data =
-                raw
-                    ? JSON.parse(raw)
-                    : {};
-
-        } catch (error) {
-
-            throw new Error(
-                "AI server ने valid JSON नहीं भेजा।"
-            );
-
-        }
-
-        // Backend error
-        if (!response.ok) {
-
-            throw new Error(
-                data?.error ||
-                "AI request failed."
-            );
-
-        }
-
-        /*
-         * Gill AI backend normally returns:
-         *
-         * {
-         *   success: true,
-         *   reply: "..."
-         * }
-         */
-
-        let reply =
-            data?.reply;
-
-        /*
-         * Compatibility with other response formats
-         */
-
-        if (!reply) {
-
-            reply =
-                data?.message;
-
-        }
-
-        if (!reply) {
-
-            reply =
-                data?.choices?.[0]?.message?.content;
-
-        }
-
-        if (!reply) {
-
-            reply =
-                data?.output?.text;
-
-        }
-
-        if (!reply) {
-
-            reply =
-                data?.output;
-
-        }
-
-        /*
-         * If API returned an object,
-         * convert it safely to readable text.
-         */
-
-        if (
-            reply &&
-            typeof reply === "object"
-        ) {
-
-            reply =
-                reply.text ||
-                reply.content ||
-                reply.message ||
-                JSON.stringify(reply);
-
-        }
-
-        reply =
-            String(
-                reply || ""
-            ).trim();
-
-        if (!reply) {
-
-            throw new Error(
-                "AI response में कोई reply नहीं मिला।"
-            );
-
-        }
-
-        /*
-         * Remove loading message
-         * and display actual AI reply.
-         */
 
         if (loading) {
 
             loading.innerHTML =
-                escapeHTML(reply)
-                    .replace(
-                        /\n/g,
-                        "<br>"
-                    );
+                escapeHTML(
+                    reply
+                ).replace(
+                    /\n/g,
+                    "<br>"
+                );
 
         }
 
-        // Save history
+
         saveHistory(
             text,
             reply
         );
+
 
     } catch (error) {
 
@@ -699,143 +767,6 @@ async function sendMessage() {
             error
         );
 
-        if (loading) {
-
-            loading.innerHTML =
-                "❌ <b>AI Error:</b><br><br>" +
-                escapeHTML(
-                    error?.message ||
-                    "AI request failed."
-                );
-
-        }
-
-    }
-
-}
-
-    if (!userInput) return;
-
-    const text =
-        userInput.value.trim();
-
-    if (!text) return;
-
-    addMessage(
-        escapeHTML(text),
-        "user"
-    );
-
-    userInput.value = "";
-
-    const loading =
-        addMessage(
-            "⏳ सोच रहा हूँ...",
-            "ai"
-        );
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/chat",
-                {
-
-                    method:
-                        "POST",
-
-                    headers: {
-
-                        "Content-Type":
-                            "application/json",
-
-                        "Accept":
-                            "application/json"
-
-                    },
-
-                    body:
-                        JSON.stringify({
-
-                            message:
-                                text
-
-                        })
-
-                }
-            );
-
-        const raw =
-            await response.text();
-
-        let data = {};
-
-        try {
-
-            data =
-                raw
-                    ? JSON.parse(raw)
-                    : {};
-
-        } catch (error) {
-
-            throw new Error(
-
-                "AI server ने valid JSON नहीं भेजा। /api/chat check करें।"
-
-            );
-
-        }
-
-        if (!response.ok) {
-
-            throw new Error(
-
-                data?.error ||
-                "AI request failed."
-
-            );
-
-        }
-
-        const reply =
-            data?.reply ||
-            data?.message ||
-            data?.choices?.[0]?.message?.content ||
-            "";
-
-        if (!reply) {
-
-            throw new Error(
-
-                "AI response में reply नहीं मिला।"
-
-            );
-
-        }
-
-        if (loading) {
-
-            loading.innerHTML =
-                escapeHTML(reply)
-                    .replace(
-                        /\n/g,
-                        "<br>"
-                    );
-
-        }
-
-        saveHistory(
-            text,
-            reply
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Chat Error:",
-            error
-        );
 
         if (loading) {
 
@@ -881,7 +812,8 @@ if (userInput) {
 
             if (
                 event.key ===
-                "Enter"
+                "Enter" &&
+                !event.shiftKey
             ) {
 
                 event.preventDefault();
@@ -910,6 +842,7 @@ if (voiceBtn) {
                 window.SpeechRecognition ||
                 window.webkitSpeechRecognition;
 
+
             if (!SpeechRecognition) {
 
                 showMessage(
@@ -920,22 +853,40 @@ if (voiceBtn) {
 
             }
 
+
             const recognition =
                 new SpeechRecognition();
+
 
             recognition.lang =
                 "hi-IN";
 
+
             recognition.interimResults =
                 false;
+
 
             recognition.maxAlternatives =
                 1;
 
+
             voiceBtn.textContent =
                 "🔴";
 
-            recognition.start();
+
+            try {
+
+                recognition.start();
+
+            } catch (error) {
+
+                console.error(
+                    "Voice start error:",
+                    error
+                );
+
+            }
+
 
             recognition.onresult =
                 function (event) {
@@ -945,6 +896,7 @@ if (voiceBtn) {
                             .results[0][0]
                             .transcript;
 
+
                     if (userInput) {
 
                         userInput.value =
@@ -953,6 +905,7 @@ if (voiceBtn) {
                     }
 
                 };
+
 
             recognition.onerror =
                 function (event) {
@@ -967,6 +920,7 @@ if (voiceBtn) {
                     );
 
                 };
+
 
             recognition.onend =
                 function () {
@@ -997,13 +951,17 @@ if (imageUploadBtn) {
                     "input"
                 );
 
+
             input.type =
                 "file";
+
 
             input.accept =
                 "image/*";
 
+
             input.click();
+
 
             input.onchange =
                 function () {
@@ -1011,7 +969,9 @@ if (imageUploadBtn) {
                     const file =
                         input.files?.[0];
 
+
                     if (!file) return;
+
 
                     addMessage(
 
@@ -1033,11 +993,21 @@ if (imageUploadBtn) {
     );
 
 }
+
+
+/* =========================================================
+   PART 1 READY
+   PART 2 MUST START AFTER THIS LINE
+========================================================= */
+
+console.log(
+    "✅ Gill AI Ultimate v8 Part 1/3 loaded."
+);
 /* =========================================================
    Gill AI Ultimate v8
-   COMPLETE script.js
    PART 2/3
    AI VIDEO GENERATOR
+   /api/video + /api/video-status
 ========================================================= */
 
 
@@ -1071,22 +1041,20 @@ function createVideoPanel() {
 
     videoPanel.innerHTML = `
 
-        <h2 style="margin-top:0;">
-            🎬 AI Video Generator
-        </h2>
+        <h2>🎬 AI Video Generator</h2>
 
         <p style="opacity:.75;">
-            अपना video prompt लिखें और Generate दबाएँ।
+            अपना prompt लिखें और Generate Video दबाएँ।
         </p>
 
         <textarea
             id="gillVideoPrompt"
-            placeholder="Example: Create a cinematic video of India Gate at sunset..."
+            placeholder="Create a cinematic video of India Gate at sunset..."
             style="
                 width:100%;
                 min-height:130px;
-                padding:14px;
                 box-sizing:border-box;
+                padding:14px;
                 border-radius:12px;
                 border:1px solid #475569;
                 background:#020617;
@@ -1112,15 +1080,9 @@ function createVideoPanel() {
                     border:1px solid #475569;
                 "
             >
-                <option value="5">
-                    5 seconds
-                </option>
-
-                <option value="10">
-                    10 seconds
-                </option>
+                <option value="5">5 seconds</option>
+                <option value="10">10 seconds</option>
             </select>
-
 
             <select
                 id="gillVideoAspectRatio"
@@ -1132,23 +1094,12 @@ function createVideoPanel() {
                     border:1px solid #475569;
                 "
             >
-
-                <option value="9:16">
-                    9:16 Vertical
-                </option>
-
-                <option value="16:9">
-                    16:9 Landscape
-                </option>
-
-                <option value="1:1">
-                    1:1 Square
-                </option>
-
+                <option value="9:16">9:16 Vertical</option>
+                <option value="16:9">16:9 Landscape</option>
+                <option value="1:1">1:1 Square</option>
             </select>
 
         </div>
-
 
         <button
             id="gillGenerateVideo"
@@ -1169,7 +1120,6 @@ function createVideoPanel() {
             🎬 Generate Video
         </button>
 
-
         <div
             id="gillVideoStatus"
             style="
@@ -1179,37 +1129,20 @@ function createVideoPanel() {
             "
         ></div>
 
-
         <div
             id="gillVideoPreview"
             style="
                 margin-top:15px;
             "
         ></div>
-
     `;
-
-
-    /*
-       Try to place panel inside main content
-    */
 
     const main =
         document.querySelector("main") ||
-        document.querySelector(
-            ".main-content"
-        ) ||
+        document.querySelector(".main-content") ||
         document.body;
 
-
-    main.appendChild(
-        videoPanel
-    );
-
-
-    /*
-       Get newly created elements
-    */
+    main.appendChild(videoPanel);
 
     videoPrompt =
         document.getElementById(
@@ -1236,11 +1169,6 @@ function createVideoPanel() {
             "gillVideoPreview"
         );
 
-
-    /*
-       Generate button
-    */
-
     if (generateVideoBtn) {
 
         generateVideoBtn.addEventListener(
@@ -1249,11 +1177,6 @@ function createVideoPanel() {
         );
 
     }
-
-
-    /*
-       Example prompt
-    */
 
     if (videoPrompt) {
 
@@ -1270,34 +1193,29 @@ function createVideoPanel() {
 
 function removeVideoPanel() {
 
-    const existing =
+    const panel =
         document.getElementById(
             "gillVideoPanel"
         );
 
-    if (existing) {
+    if (panel) {
 
-        existing.remove();
+        panel.remove();
 
     }
 
     videoPanel = null;
-
     videoPrompt = null;
-
     videoDuration = null;
-
     videoAspectRatio = null;
-
     generateVideoBtn = null;
-
     videoPreview = null;
 
 }
 
 
 /* =========================================================
-   VIDEO GENERATION
+   GENERATE VIDEO
 ========================================================= */
 
 async function generateVideo() {
@@ -1305,15 +1223,12 @@ async function generateVideo() {
     if (!videoPrompt) {
 
         createVideoPanel();
-
         return;
 
     }
 
-
     const prompt =
         videoPrompt.value.trim();
-
 
     if (!prompt) {
 
@@ -1327,20 +1242,37 @@ async function generateVideo() {
 
     }
 
-
     const duration =
         Number(
-            videoDuration?.value ||
-            5
+            videoDuration?.value || 5
         );
-
 
     const aspectRatio =
         String(
-            videoAspectRatio?.value ||
-            "9:16"
+            videoAspectRatio?.value || "9:16"
         );
 
+    const status =
+        document.getElementById(
+            "gillVideoStatus"
+        );
+
+    if (status) {
+
+        status.innerHTML =
+            "🎬 <b>AI Video Generation शुरू...</b>\n\n" +
+            "📝 Prompt:\n" +
+            escapeHTML(prompt) +
+            "\n\n" +
+            "⏱️ Duration: " +
+            duration +
+            " seconds\n" +
+            "📐 Ratio: " +
+            escapeHTML(aspectRatio) +
+            "\n\n" +
+            "⏳ Video request भेजी जा रही है...";
+
+    }
 
     if (generateVideoBtn) {
 
@@ -1352,118 +1284,57 @@ async function generateVideo() {
 
     }
 
-
-    if (videoPreview) {
-
-        videoPreview.innerHTML = "";
-
-    }
-
-
-    const status =
-        document.getElementById(
-            "gillVideoStatus"
-        );
-
-
-    if (status) {
-
-        status.innerHTML =
-
-            "🎬 <b>AI Video Generation शुरू...</b>\n\n" +
-
-            "📝 Prompt:\n" +
-
-            escapeHTML(prompt) +
-
-            "\n\n" +
-
-            "⏱️ Requested Duration: " +
-
-            duration +
-
-            " seconds\n" +
-
-            "📐 Ratio: " +
-
-            aspectRatio +
-
-            "\n\n" +
-
-            "⏳ Video request भेजी जा रही है...";
-
-    }
-
-
     try {
 
-        /*
-           STEP 1
-           Submit video generation request
-        */
+        /* -------------------------------------------------
+           SEND REQUEST TO /api/video
+        ------------------------------------------------- */
 
         const response =
             await fetch(
                 "/api/video",
                 {
-
-                    method:
-                        "POST",
+                    method: "POST",
 
                     headers: {
-
                         "Content-Type":
                             "application/json",
 
                         "Accept":
                             "application/json"
-
                     },
 
                     body:
                         JSON.stringify({
-
                             prompt:
                                 prompt,
 
-                            aspectRatio:
-                                aspectRatio,
-
                             duration:
-                                duration
+                                duration,
 
+                            aspectRatio:
+                                aspectRatio
                         })
-
                 }
             );
 
-
-        /*
-           IMPORTANT:
-           Read text first.
-           This prevents:
-           "valid JSON नहीं भेजा"
-           from hiding the actual server error.
-        */
 
         const raw =
             await response.text();
 
 
         console.log(
-            "VIDEO SERVER STATUS:",
+            "VIDEO API STATUS:",
             response.status
         );
 
-
         console.log(
-            "VIDEO SERVER RESPONSE:",
+            "VIDEO API RESPONSE:",
             raw
         );
 
 
         let data = {};
-
 
         try {
 
@@ -1472,91 +1343,53 @@ async function generateVideo() {
                     ? JSON.parse(raw)
                     : {};
 
-        } catch (jsonError) {
+        } catch (error) {
 
             throw new Error(
-
-                "Video server ने valid JSON नहीं भेजा। HTTP " +
-
-                response.status +
-
-                "\n\nServer response:\n" +
-
-                raw.substring(
-                    0,
-                    1000
-                )
-
+                "Video server ने valid JSON नहीं भेजा।"
             );
 
         }
 
-
-        /*
-           API ERROR
-        */
 
         if (!response.ok) {
 
             throw new Error(
-
                 data?.error ||
-
-                data?.message ||
-
-                "Video API request failed. HTTP " +
-
-                response.status
-
+                "Video API request failed."
             );
 
         }
 
 
-        /*
-           API SUCCESS CHECK
-        */
-
         if (
-            data.success !== true
+            data?.success !== true
         ) {
 
             throw new Error(
-
                 data?.error ||
-
                 "Video request failed."
-
             );
 
         }
 
 
-        /*
-           Request ID
-        */
-
         const requestId =
             data?.request_id ||
+            data?.requestId ||
             "";
 
 
         const statusUrl =
             data?.status_url ||
-            "";
-
-
-        const responseUrl =
-            data?.response_url ||
+            data?.statusUrl ||
             "";
 
 
         if (!requestId) {
 
             throw new Error(
-
-                "Video server ने request_id नहीं दिया।"
-
+                "fal.ai request ID नहीं मिला।"
             );
 
         }
@@ -1565,60 +1398,39 @@ async function generateVideo() {
         if (status) {
 
             status.innerHTML =
-
-                "✅ <b>Video request accepted!</b>\n\n" +
-
+                "✅ <b>Video request submitted.</b>\n\n" +
                 "🆔 Request ID:\n" +
-
-                escapeHTML(
-                    requestId
-                ) +
-
+                escapeHTML(requestId) +
                 "\n\n" +
-
-                "⏳ fal.ai video तैयार कर रहा है...\n" +
-
-                "यह process कुछ समय ले सकता है।";
+                "⏳ Video generate हो रही है...";
 
         }
 
 
-        /*
-           STEP 2
-           Poll video status
-        */
+        /* -------------------------------------------------
+           CHECK RESULT
+        ------------------------------------------------- */
 
-        await pollVideoStatus(
-
+        await checkVideoResult(
             statusUrl,
-
-            responseUrl,
-
             requestId
-
         );
 
 
     } catch (error) {
 
         console.error(
-            "Video Generation Error:",
+            "AI Video Error:",
             error
         );
-
 
         if (status) {
 
             status.innerHTML =
-
                 "❌ <b>Video Error:</b>\n\n" +
-
                 escapeHTML(
-
                     error?.message ||
-
                     "Video generation failed."
-
                 );
 
         }
@@ -1641,12 +1453,11 @@ async function generateVideo() {
 
 
 /* =========================================================
-   VIDEO STATUS POLLING
+   CHECK VIDEO RESULT
 ========================================================= */
 
-async function pollVideoStatus(
+async function checkVideoResult(
     statusUrl,
-    responseUrl,
     requestId
 ) {
 
@@ -1656,23 +1467,31 @@ async function pollVideoStatus(
         );
 
 
-    /*
-       If server does not provide status URL,
-       use our own API endpoint.
-    */
-
-    let targetUrl =
-        statusUrl || "";
+    let url =
+        statusUrl;
 
 
     /*
-       Poll maximum 60 times.
-       5 seconds interval.
-       Total approximately 5 minutes.
+       Fallback status URL.
+       Normally /api/video already returns
+       status_url, so this is only a fallback.
     */
+
+    if (!url) {
+
+        throw new Error(
+            "Video status URL नहीं मिला।"
+        );
+
+    }
+
 
     const maxAttempts =
         60;
+
+
+    const waitTime =
+        5000;
 
 
     for (
@@ -1686,62 +1505,31 @@ async function pollVideoStatus(
             if (status) {
 
                 status.innerHTML =
-
-                    "🎬 <b>Video तैयार हो रही है...</b>\n\n" +
-
-                    "⏳ Checking status... " +
-
+                    "🎬 <b>Video generate हो रही है...</b>\n\n" +
+                    "⏳ Status check: " +
                     attempt +
-
                     "/" +
-
                     maxAttempts;
 
             }
 
 
             /*
-               Our secure proxy endpoint.
-            */
-
-            let proxyUrl =
-                "/api/video-status?";
-
-
-            if (targetUrl) {
-
-                proxyUrl +=
-                    "url=" +
-                    encodeURIComponent(
-                        targetUrl
-                    );
-
-            } else {
-
-                proxyUrl +=
-                    "request_id=" +
-                    encodeURIComponent(
-                        requestId
-                    );
-
-            }
-
+             * Send fal.ai status URL through our
+             * Vercel endpoint.
+             */
 
             const response =
                 await fetch(
-                    proxyUrl,
+                    "/api/video-status?url=" +
+                    encodeURIComponent(url),
                     {
-
-                        method:
-                            "GET",
+                        method: "GET",
 
                         headers: {
-
                             "Accept":
                                 "application/json"
-
                         }
-
                     }
                 );
 
@@ -1751,14 +1539,17 @@ async function pollVideoStatus(
 
 
             console.log(
-                "VIDEO STATUS:",
-                response.status,
+                "VIDEO STATUS HTTP:",
+                response.status
+            );
+
+            console.log(
+                "VIDEO STATUS RAW:",
                 raw
             );
 
 
             let data = {};
-
 
             try {
 
@@ -1770,14 +1561,7 @@ async function pollVideoStatus(
             } catch (error) {
 
                 throw new Error(
-
-                    "Video status server ने valid JSON नहीं भेजा।\n\n" +
-
-                    raw.substring(
-                        0,
-                        500
-                    )
-
+                    "Video status server ने valid JSON नहीं भेजा।"
                 );
 
             }
@@ -1786,11 +1570,8 @@ async function pollVideoStatus(
             if (!response.ok) {
 
                 throw new Error(
-
                     data?.error ||
-
                     "Video status request failed."
-
                 );
 
             }
@@ -1803,42 +1584,31 @@ async function pollVideoStatus(
                 ).toUpperCase();
 
 
-            /*
-               VIDEO COMPLETED
-            */
-
-            if (
-                data?.success === true &&
-                data?.video_url
-            ) {
-
-                showGeneratedVideo(
-                    data.video_url
-                );
-
-                return;
-
-            }
-
-
-            /*
-               Some API responses can return
-               video URL under different keys.
-            */
+            /* -------------------------------------------------
+               VIDEO COMPLETE
+            ------------------------------------------------- */
 
             const videoUrl =
+                data?.video_url ||
+                data?.videoUrl ||
                 data?.video?.url ||
                 data?.output?.video?.url ||
                 data?.output?.url ||
-                data?.url ||
                 "";
 
 
             if (
-                currentStatus ===
-                    "COMPLETED" &&
+                currentStatus === "COMPLETED" ||
                 videoUrl
             ) {
+
+                if (!videoUrl) {
+
+                    throw new Error(
+                        "Video complete हुई लेकिन URL नहीं मिला।"
+                    );
+
+                }
 
                 showGeneratedVideo(
                     videoUrl
@@ -1849,40 +1619,36 @@ async function pollVideoStatus(
             }
 
 
-            /*
-               FAILED
-            */
+            /* -------------------------------------------------
+               VIDEO FAILED
+            ------------------------------------------------- */
 
             if (
-                currentStatus ===
-                    "FAILED" ||
-                currentStatus ===
-                    "ERROR"
+                currentStatus === "FAILED" ||
+                currentStatus === "ERROR" ||
+                currentStatus === "CANCELLED"
             ) {
 
                 throw new Error(
-
                     data?.error ||
-
+                    data?.message ||
                     "fal.ai video generation failed."
-
                 );
 
             }
 
-
         } catch (error) {
 
             console.error(
-                "Video Status Error:",
+                "Video status error:",
                 error
             );
 
 
             /*
-               Don't immediately fail on a
-               temporary polling error.
-            */
+             * Retry temporary errors until
+             * maximum attempts are reached.
+             */
 
             if (
                 attempt >= maxAttempts
@@ -1895,15 +1661,11 @@ async function pollVideoStatus(
         }
 
 
-        /*
-           Wait 5 seconds before next check.
-        */
-
         await new Promise(
             resolve =>
                 setTimeout(
                     resolve,
-                    5000
+                    waitTime
                 )
         );
 
@@ -1911,16 +1673,14 @@ async function pollVideoStatus(
 
 
     throw new Error(
-
-        "Video generation timeout. कृपया फिर से try करें।"
-
+        "Video generation timeout."
     );
 
 }
 
 
 /* =========================================================
-   SHOW GENERATED VIDEO
+   DISPLAY GENERATED VIDEO
 ========================================================= */
 
 function showGeneratedVideo(
@@ -1932,59 +1692,45 @@ function showGeneratedVideo(
             "gillVideoStatus"
         );
 
+    const preview =
+        document.getElementById(
+            "gillVideoPreview"
+        );
+
 
     if (status) {
 
         status.innerHTML =
-
             "✅ <b>Video तैयार है!</b>";
 
     }
 
 
-    if (!videoPreview) {
-
-        videoPreview =
-            document.getElementById(
-                "gillVideoPreview"
-            );
-
-    }
+    if (!preview) return;
 
 
-    if (!videoPreview) return;
-
-
-    videoPreview.innerHTML = `
+    preview.innerHTML = `
 
         <div style="
             margin-top:15px;
             padding:12px;
-            border-radius:15px;
+            border-radius:14px;
             background:#020617;
+            border:1px solid #334155;
         ">
 
             <video
                 controls
                 playsinline
+                preload="metadata"
                 style="
                     width:100%;
                     max-height:600px;
                     border-radius:12px;
                     display:block;
                 "
-            >
-
-                <source
-                    src="${escapeHTML(videoUrl)}"
-                    type="video/mp4"
-                >
-
-                आपका browser video playback
-                support नहीं करता।
-
-            </video>
-
+                src="${escapeHTML(videoUrl)}"
+            ></video>
 
             <a
                 href="${escapeHTML(videoUrl)}"
@@ -1993,8 +1739,182 @@ function showGeneratedVideo(
                 style="
                     display:block;
                     margin-top:12px;
-                    padding:12px;
                     text-align:center;
+                    padding:12px;
+                    border-radius:10px;
+                    background:#2563eb;
+                    color:white;
+                    text-decoration:none;
+                    font-weight:bold;
+                "
+            >
+                ▶️ Open Generated Video
+            </a>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =========================================================
+   PART 2 READY
+========================================================= */
+
+console.log(
+    "✅ Gill AI Ultimate v8 Part 2/3 loaded."
+);
+
+/* =========================================================
+   Gill AI Ultimate v8
+   COMPLETE script.js
+   PART 3/3
+   AI VIDEO API + STATUS + RESULT
+========================================================= */
+
+"use strict";
+
+
+/* =========================================================
+   VIDEO API SETTINGS
+========================================================= */
+
+const VIDEO_API_URL =
+    "/api/video";
+
+const VIDEO_STATUS_API_URL =
+    "/api/video-status";
+
+
+/* =========================================================
+   SAFE JSON RESPONSE READER
+========================================================= */
+
+async function readJSONResponse(response) {
+
+    const raw =
+        await response.text();
+
+    let data = {};
+
+    try {
+
+        data =
+            raw
+                ? JSON.parse(raw)
+                : {};
+
+    } catch (error) {
+
+        console.error(
+            "Invalid JSON response:",
+            raw.substring(0, 2000)
+        );
+
+        throw new Error(
+            "Video server ने valid JSON नहीं भेजा।"
+        );
+
+    }
+
+    return {
+        response,
+        data,
+        raw
+    };
+
+}
+
+
+/* =========================================================
+   UPDATE VIDEO STATUS
+========================================================= */
+
+function updateVideoStatus(text) {
+
+    const status =
+        document.getElementById(
+            "gillVideoStatus"
+        );
+
+    if (status) {
+
+        status.textContent =
+            String(text || "");
+
+    }
+
+}
+
+
+/* =========================================================
+   SHOW VIDEO RESULT
+========================================================= */
+
+function showVideoResult(videoUrl) {
+
+    const preview =
+        document.getElementById(
+            "gillVideoPreview"
+        );
+
+    if (!preview) return;
+
+    if (!videoUrl) {
+
+        preview.innerHTML =
+            "<p>❌ Video URL नहीं मिला।</p>";
+
+        return;
+
+    }
+
+
+    /*
+       Video URL को safely encode करें
+    */
+
+    const safeUrl =
+        String(videoUrl)
+            .replace(/"/g, "&quot;");
+
+
+    preview.innerHTML = `
+
+        <div style="
+            margin-top:15px;
+            padding:15px;
+            border-radius:15px;
+            background:#020617;
+            border:1px solid #334155;
+        ">
+
+            <h3 style="margin-top:0;">
+                ✅ Video तैयार है
+            </h3>
+
+            <video
+                controls
+                playsinline
+                style="
+                    width:100%;
+                    max-width:720px;
+                    border-radius:14px;
+                    display:block;
+                    background:#000;
+                "
+                src="${safeUrl}"
+            ></video>
+
+            <a
+                href="${safeUrl}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="
+                    display:inline-block;
+                    margin-top:12px;
+                    padding:12px 16px;
                     border-radius:10px;
                     background:#2563eb;
                     color:white;
@@ -2013,276 +1933,758 @@ function showGeneratedVideo(
 
 
 /* =========================================================
-   PAGE LOAD
+   FIND VIDEO URL FROM FAL RESPONSE
 ========================================================= */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+function extractVideoURL(data) {
 
-        console.log(
-            "Gill AI Ultimate v8 loaded successfully."
+    if (!data) return "";
+
+
+    /*
+       Direct video
+    */
+
+    if (data.video?.url) {
+
+        return String(
+            data.video.url
         );
 
     }
-);
-/* =========================================================
-   Gill AI Ultimate v8
-   COMPLETE script.js
-   PART 3/3
-   BUTTON COMPATIBILITY + INITIALIZATION
-========================================================= */
 
 
-/* =========================================================
-   FIND ELEMENT BY MULTIPLE POSSIBLE IDs
-========================================================= */
+    /*
+       output.video.url
+    */
 
-function findElement(...ids) {
+    if (data.output?.video?.url) {
 
-    for (const id of ids) {
+        return String(
+            data.output.video.url
+        );
 
-        const element =
-            document.getElementById(id);
+    }
 
-        if (element) {
 
-            return element;
+    /*
+       output.url
+    */
+
+    if (data.output?.url) {
+
+        return String(
+            data.output.url
+        );
+
+    }
+
+
+    /*
+       output as string
+    */
+
+    if (
+        typeof data.output ===
+        "string"
+    ) {
+
+        return String(
+            data.output
+        );
+
+    }
+
+
+    /*
+       output array
+    */
+
+    if (
+        Array.isArray(
+            data.output
+        )
+    ) {
+
+        const first =
+            data.output[0];
+
+        if (
+            typeof first ===
+            "string"
+        ) {
+
+            return first;
+
+        }
+
+        if (first?.url) {
+
+            return String(
+                first.url
+            );
 
         }
 
     }
 
-    return null;
+
+    /*
+       result.video.url
+    */
+
+    if (data.result?.video?.url) {
+
+        return String(
+            data.result.video.url
+        );
+
+    }
+
+
+    /*
+       result.url
+    */
+
+    if (data.result?.url) {
+
+        return String(
+            data.result.url
+        );
+
+    }
+
+
+    return "";
 
 }
 
 
 /* =========================================================
-   EXTRA BUTTON COMPATIBILITY
+   CHECK VIDEO STATUS
 ========================================================= */
 
-function connectExtraButtons() {
+async function checkVideoStatus(
+    statusUrl,
+    attempt = 0
+) {
 
     /*
-       If original HTML uses different IDs,
-       connect them automatically.
+       Maximum polling attempts
+       लगभग 5 minutes
     */
 
-    const home =
-        findElement(
-            "home",
-            "homeButton",
-            "homeNav",
-            "btnHome"
+    const MAX_ATTEMPTS =
+        60;
+
+
+    if (
+        !statusUrl
+    ) {
+
+        throw new Error(
+            "Video status URL नहीं मिला।"
         );
 
-    const chat =
-        findElement(
-            "chat",
-            "chatButton",
-            "chatNav",
-            "btnChat"
+    }
+
+
+    if (
+        attempt >=
+        MAX_ATTEMPTS
+    ) {
+
+        throw new Error(
+            "Video generation में बहुत समय लग रहा है। बाद में status फिर check करें।"
         );
 
-    const image =
-        findElement(
-            "image",
-            "imageButton",
-            "imageNav",
-            "btnImage"
-        );
+    }
 
-    const video =
-        findElement(
-            "video",
-            "videoButton",
-            "videoNav",
-            "btnVideo"
-        );
 
-    const editor =
-        findElement(
-            "editor",
-            "editorButton",
-            "editorNav",
-            "btnEditor"
-        );
-
-    const history =
-        findElement(
-            "history",
-            "historyButton",
-            "historyNav",
-            "btnHistory"
-        );
-
-    const settings =
-        findElement(
-            "settings",
-            "settingsButton",
-            "settingsNav",
-            "btnSettings"
-        );
+    updateVideoStatus(
+        "⏳ Video तैयार हो रही है...\n\n" +
+        "🔄 Status check " +
+        (attempt + 1) +
+        "/" +
+        MAX_ATTEMPTS
+    );
 
 
     /*
-       Home
+       Encode status URL
+    */
+
+    const requestURL =
+        VIDEO_STATUS_API_URL +
+        "?url=" +
+        encodeURIComponent(
+            statusUrl
+        );
+
+
+    const response =
+        await fetch(
+            requestURL,
+            {
+
+                method:
+                    "GET",
+
+                headers: {
+
+                    "Accept":
+                        "application/json"
+
+                }
+
+            }
+        );
+
+
+    const result =
+        await readJSONResponse(
+            response
+        );
+
+
+    const data =
+        result.data;
+
+
+    /*
+       Server error
     */
 
     if (
-        home &&
-        home !== homeBtn
+        !result.response.ok
     ) {
 
-        home.addEventListener(
-            "click",
-            function (event) {
+        throw new Error(
 
-                event.preventDefault();
+            data?.error ||
+            "Video status request failed."
 
-                showHome();
-
-            }
         );
 
     }
 
 
     /*
-       Chat
+       Video URL खोजें
+    */
+
+    const videoUrl =
+        extractVideoURL(
+            data
+        );
+
+
+    /*
+       अगर video मिल गई
+    */
+
+    if (videoUrl) {
+
+        updateVideoStatus(
+            "✅ Video successfully generated!"
+        );
+
+        showVideoResult(
+            videoUrl
+        );
+
+        return {
+            success: true,
+            videoUrl: videoUrl,
+            data: data
+        };
+
+    }
+
+
+    /*
+       Status पढ़ें
+    */
+
+    const status =
+        String(
+            data?.status ||
+            data?.state ||
+            ""
+        ).toUpperCase();
+
+
+    /*
+       Completed लेकिन URL नहीं
     */
 
     if (
-        chat &&
-        chat !== chatBtn
+        status ===
+            "COMPLETED" ||
+        status ===
+            "SUCCEEDED" ||
+        status ===
+            "SUCCESS"
     ) {
 
-        chat.addEventListener(
-            "click",
-            function (event) {
+        updateVideoStatus(
+            "⚠️ Video complete है लेकिन video URL अभी नहीं मिला।"
+        );
 
-                event.preventDefault();
+        /*
+           एक बार फिर check
+        */
 
-                showChat();
+        setTimeout(
+            function () {
 
-            }
+                checkVideoStatus(
+                    statusUrl,
+                    attempt + 1
+                ).catch(
+                    handleVideoError
+                );
+
+            },
+            2000
+        );
+
+        return;
+
+    }
+
+
+    /*
+       Failed states
+    */
+
+    if (
+        status === "FAILED" ||
+        status === "ERROR" ||
+        status === "CANCELLED"
+    ) {
+
+        throw new Error(
+
+            data?.error ||
+            data?.detail ||
+            data?.message ||
+            "Video generation failed."
+
         );
 
     }
 
 
     /*
-       Image
+       अभी processing में है
     */
 
-    if (
-        image &&
-        image !== imageBtn
-    ) {
+    updateVideoStatus(
 
-        image.addEventListener(
-            "click",
-            function (event) {
+        "⏳ Video तैयार हो रही है...\n\n" +
 
-                event.preventDefault();
+        "📊 Status: " +
 
-                showImage();
+        (
+            status ||
+            "IN_QUEUE"
+        ) +
 
-            }
+        "\n\n" +
+
+        "🔄 अगला check कुछ seconds में..."
+
+    );
+
+
+    /*
+       Poll again
+    */
+
+    setTimeout(
+        function () {
+
+            checkVideoStatus(
+                statusUrl,
+                attempt + 1
+            ).catch(
+                handleVideoError
+            );
+
+        },
+        5000
+    );
+
+}
+
+
+/* =========================================================
+   ERROR HANDLER
+========================================================= */
+
+function handleVideoError(error) {
+
+    console.error(
+        "Gill AI Video Error:",
+        error
+    );
+
+
+    updateVideoStatus(
+
+        "❌ Video Error:\n\n" +
+
+        (
+            error?.message ||
+            "Video generation failed."
+        )
+
+    );
+
+}
+
+
+/* =========================================================
+   GENERATE VIDEO
+========================================================= */
+
+async function generateVideo() {
+
+    const promptElement =
+        document.getElementById(
+            "gillVideoPrompt"
         );
+
+    const durationElement =
+        document.getElementById(
+            "gillVideoDuration"
+        );
+
+    const ratioElement =
+        document.getElementById(
+            "gillVideoAspectRatio"
+        );
+
+    const button =
+        document.getElementById(
+            "gillGenerateVideo"
+        );
+
+
+    if (!promptElement) {
+
+        console.error(
+            "Video prompt element not found."
+        );
+
+        return;
 
     }
 
 
-    /*
-       Video
-    */
+    const prompt =
+        String(
+            promptElement.value ||
+            ""
+        ).trim();
 
-    if (
-        video &&
-        video !== videoBtn
-    ) {
 
-        video.addEventListener(
-            "click",
-            function (event) {
+    if (!prompt) {
 
-                event.preventDefault();
-
-                createVideoPanel();
-
-            }
+        alert(
+            "पहले video prompt लिखें।"
         );
+
+        promptElement.focus();
+
+        return;
 
     }
 
 
+    const duration =
+        Number(
+            durationElement?.value ||
+            5
+        );
+
+
+    const aspectRatio =
+        String(
+            ratioElement?.value ||
+            "9:16"
+        );
+
+
     /*
-       Editor
+       Button disable
     */
 
-    if (
-        editor &&
-        editor !== editorBtn
-    ) {
+    if (button) {
 
-        editor.addEventListener(
-            "click",
-            function (event) {
+        button.disabled =
+            true;
 
-                event.preventDefault();
+        button.textContent =
+            "⏳ Generating...";
 
-                showEditor();
+        button.style.opacity =
+            "0.7";
 
-            }
-        );
+        button.style.cursor =
+            "not-allowed";
 
     }
 
 
-    /*
-       History
-    */
-
-    if (
-        history &&
-        history !== historyBtn
-    ) {
-
-        history.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-                showHistory();
-
-            }
+    const preview =
+        document.getElementById(
+            "gillVideoPreview"
         );
+
+    if (preview) {
+
+        preview.innerHTML =
+            "";
 
     }
 
 
-    /*
-       Settings
-    */
+    updateVideoStatus(
 
-    if (
-        settings &&
-        settings !== settingsBtn
-    ) {
+        "🎬 AI Video Generation शुरू...\n\n" +
 
-        settings.addEventListener(
-            "click",
-            function (event) {
+        "📝 Prompt:\n" +
 
-                event.preventDefault();
+        prompt +
 
-                showSettings();
+        "\n\n" +
 
-            }
+        "⏱️ Duration: " +
+
+        duration +
+
+        " seconds\n" +
+
+        "📐 Ratio: " +
+
+        aspectRatio +
+
+        "\n\n" +
+
+        "📡 Server से connection हो रहा है..."
+
+    );
+
+
+    try {
+
+        /*
+           Send request to Vercel
+           /api/video
+        */
+
+        const response =
+            await fetch(
+                VIDEO_API_URL,
+                {
+
+                    method:
+                        "POST",
+
+                    headers: {
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            prompt:
+                                prompt,
+
+                            duration:
+                                duration,
+
+                            aspectRatio:
+                                aspectRatio
+
+                        })
+
+                }
+            );
+
+
+        /*
+           Read JSON safely
+        */
+
+        const result =
+            await readJSONResponse(
+                response
+            );
+
+
+        const data =
+            result.data;
+
+
+        /*
+           HTTP error
+        */
+
+        if (
+            !result.response.ok
+        ) {
+
+            throw new Error(
+
+                data?.error ||
+
+                "Video server request failed. HTTP " +
+                result.response.status
+
+            );
+
+        }
+
+
+        /*
+           API success check
+        */
+
+        if (
+            data?.success !== true
+        ) {
+
+            throw new Error(
+
+                data?.error ||
+                "Video request successful नहीं हुआ।"
+
+            );
+
+        }
+
+
+        /*
+           Status URL
+        */
+
+        const statusUrl =
+            data?.status_url ||
+            data?.statusUrl ||
+            "";
+
+
+        /*
+           Direct video URL भी हो सकती है
+        */
+
+        const directVideoURL =
+            extractVideoURL(
+                data
+            );
+
+
+        if (
+            directVideoURL
+        ) {
+
+            updateVideoStatus(
+                "✅ Video तैयार है!"
+            );
+
+            showVideoResult(
+                directVideoURL
+            );
+
+            return;
+
+        }
+
+
+        /*
+           Status URL नहीं मिला
+        */
+
+        if (!statusUrl) {
+
+            throw new Error(
+
+                "Video request accepted हुई लेकिन status URL नहीं मिला।"
+
+            );
+
+        }
+
+
+        /*
+           Queue request accepted
+        */
+
+        updateVideoStatus(
+
+            "✅ Video request server को भेज दी गई।\n\n" +
+
+            "🆔 Request ID: " +
+
+            (
+                data?.request_id ||
+                "Available"
+            ) +
+
+            "\n\n" +
+
+            "⏳ अब video status check हो रहा है..."
+
         );
+
+
+        /*
+           Start polling
+        */
+
+        await checkVideoStatus(
+            statusUrl,
+            0
+        );
+
+
+    } catch (error) {
+
+        handleVideoError(
+            error
+        );
+
+    } finally {
+
+        /*
+           Button फिर enable
+           करें
+        */
+
+        if (button) {
+
+            button.disabled =
+                false;
+
+            button.textContent =
+                "🎬 Generate Video";
+
+            button.style.opacity =
+                "1";
+
+            button.style.cursor =
+                "pointer";
+
+        }
 
     }
 
@@ -2290,7 +2692,7 @@ function connectExtraButtons() {
 
 
 /* =========================================================
-   GLOBAL BUTTON HANDLER
+   CONNECT GENERATE BUTTON
 ========================================================= */
 
 document.addEventListener(
@@ -2298,428 +2700,34 @@ document.addEventListener(
     function (event) {
 
         const target =
-            event.target.closest(
-                "[data-action]"
-            );
+            event.target;
 
         if (!target) return;
 
 
-        const action =
-            target.dataset.action;
-
+        /*
+           Main generated button
+        */
 
         if (
-            action ===
-            "home"
+            target.id ===
+            "gillGenerateVideo"
         ) {
 
-            event.preventDefault();
-
-            showHome();
-
-        }
-
-
-        else if (
-            action ===
-            "chat"
-        ) {
-
-            event.preventDefault();
-
-            showChat();
-
-        }
-
-
-        else if (
-            action ===
-            "image"
-        ) {
-
-            event.preventDefault();
-
-            showImage();
-
-        }
-
-
-        else if (
-            action ===
-            "video"
-        ) {
-
-            event.preventDefault();
-
-            createVideoPanel();
-
-        }
-
-
-        else if (
-            action ===
-            "editor"
-        ) {
-
-            event.preventDefault();
-
-            showEditor();
-
-        }
-
-
-        else if (
-            action ===
-            "history"
-        ) {
-
-            event.preventDefault();
-
-            showHistory();
-
-        }
-
-
-        else if (
-            action ===
-            "settings"
-        ) {
-
-            event.preventDefault();
-
-            showSettings();
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   CHAT FALLBACK BUTTON
-========================================================= */
-
-function connectChatFallback() {
-
-    const possibleSendButtons = [
-
-        "send",
-        "sendButton",
-        "btnSend",
-        "chatSend",
-        "sendMessageBtn"
-
-    ];
-
-
-    let button = null;
-
-
-    for (
-        const id of possibleSendButtons
-    ) {
-
-        const found =
-            document.getElementById(id);
-
-        if (found) {
-
-            button = found;
-
-            break;
-
-        }
-
-    }
-
-
-    if (
-        button &&
-        button !== sendBtn
-    ) {
-
-        button.addEventListener(
-            "click",
-            function (event) {
-
-                event.preventDefault();
-
-                sendMessage();
-
-            }
-        );
-
-    }
-
-
-    /*
-       Find textarea/input fallback
-    */
-
-    const possibleInputs = [
-
-        "messageInput",
-        "chatInput",
-        "promptInput",
-        "message",
-        "inputMessage"
-
-    ];
-
-
-    let input = null;
-
-
-    for (
-        const id of possibleInputs
-    ) {
-
-        const found =
-            document.getElementById(id);
-
-        if (found) {
-
-            input = found;
-
-            break;
-
-        }
-
-    }
-
-
-    if (
-        input &&
-        input !== userInput
-    ) {
-
-        input.addEventListener(
-            "keydown",
-            function (event) {
-
-                if (
-                    event.key ===
-                    "Enter" &&
-                    !event.shiftKey
-                ) {
-
-                    event.preventDefault();
-
-                    /*
-                       Copy into main input
-                    */
-
-                    if (userInput) {
-
-                        userInput.value =
-                            input.value;
-
-                    }
-
-                    sendMessage();
-
-                }
-
-            }
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   VIDEO BUTTON FALLBACK
-========================================================= */
-
-function connectVideoFallback() {
-
-    const possibleVideoButtons = [
-
-        "aiVideoBtn",
-        "videoGeneratorBtn",
-        "generateVideoPage",
-        "openVideo",
-        "videoGenerator"
-
-    ];
-
-
-    possibleVideoButtons.forEach(
-        function (id) {
-
-            const button =
-                document.getElementById(id);
-
-            if (!button) return;
+            /*
+               Prevent duplicate listeners
+            */
 
             if (
-                button ===
-                generateVideoBtn
+                !target.dataset
+                    .gillConnected
             ) {
 
-                return;
+                target.dataset
+                    .gillConnected =
+                    "true";
 
             }
-
-            button.addEventListener(
-                "click",
-                function (event) {
-
-                    event.preventDefault();
-
-                    createVideoPanel();
-
-                }
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   VOICE FALLBACK
-========================================================= */
-
-function connectVoiceFallback() {
-
-    const possibleVoiceButtons = [
-
-        "micBtn",
-        "microphoneBtn",
-        "voiceInputBtn",
-        "speechBtn"
-
-    ];
-
-
-    possibleVoiceButtons.forEach(
-        function (id) {
-
-            const button =
-                document.getElementById(id);
-
-            if (!button) return;
-
-
-            if (
-                button ===
-                voiceBtn
-            ) {
-
-                return;
-
-            }
-
-
-            button.addEventListener(
-                "click",
-                function () {
-
-                    if (voiceBtn) {
-
-                        voiceBtn.click();
-
-                    }
-
-                }
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   IMAGE UPLOAD FALLBACK
-========================================================= */
-
-function connectImageUploadFallback() {
-
-    const possibleButtons = [
-
-        "uploadImageBtn",
-        "imageBtnUpload",
-        "attachImageBtn",
-        "photoBtn"
-
-    ];
-
-
-    possibleButtons.forEach(
-        function (id) {
-
-            const button =
-                document.getElementById(id);
-
-            if (!button) return;
-
-
-            if (
-                button ===
-                imageUploadBtn
-            ) {
-
-                return;
-
-            }
-
-
-            button.addEventListener(
-                "click",
-                function () {
-
-                    if (
-                        imageUploadBtn
-                    ) {
-
-                        imageUploadBtn.click();
-
-                    }
-
-                }
-            );
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   PREVENT BROKEN # LINKS
-========================================================= */
-
-document.addEventListener(
-    "click",
-    function (event) {
-
-        const link =
-            event.target.closest(
-                "a"
-            );
-
-        if (!link) return;
-
-
-        const href =
-            link.getAttribute(
-                "href"
-            );
-
-
-        if (
-            href ===
-            "#" ||
-            href ===
-            "javascript:void(0)"
-        ) {
-
-            event.preventDefault();
 
         }
 
@@ -2728,151 +2736,33 @@ document.addEventListener(
 
 
 /* =========================================================
-   GLOBAL ERROR HANDLER
+   GLOBAL VIDEO FUNCTIONS
 ========================================================= */
 
-window.addEventListener(
-    "error",
-    function (event) {
+window.generateVideo =
+    generateVideo;
 
-        console.error(
-            "Gill AI JavaScript Error:",
-            event.error ||
-            event.message
-        );
+window.checkVideoStatus =
+    checkVideoStatus;
 
-    }
-);
+window.showVideoResult =
+    showVideoResult;
 
 
 /* =========================================================
-   UNHANDLED PROMISE ERROR
+   STARTUP MESSAGE
 ========================================================= */
-
-window.addEventListener(
-    "unhandledrejection",
-    function (event) {
-
-        console.error(
-            "Gill AI Promise Error:",
-            event.reason
-        );
-
-    }
-);
-
-
-/* =========================================================
-   INITIALIZATION
-========================================================= */
-
-function initializeGillAI() {
-
-    console.log(
-        "================================="
-    );
-
-    console.log(
-        "Gill AI Ultimate v8"
-    );
-
-    console.log(
-        "Initializing..."
-    );
-
-
-    connectExtraButtons();
-
-    connectChatFallback();
-
-    connectVideoFallback();
-
-    connectVoiceFallback();
-
-    connectImageUploadFallback();
-
-
-    console.log(
-        "Chat connected:",
-        !!userInput,
-        !!sendBtn
-    );
-
-
-    console.log(
-        "Video button connected:",
-        !!videoBtn
-    );
-
-
-    console.log(
-        "Gill AI initialization complete."
-    );
-
-    console.log(
-        "================================="
-    );
-
-}
-
-
-/* =========================================================
-   START
-========================================================= */
-
-if (
-    document.readyState ===
-    "loading"
-) {
-
-    document.addEventListener(
-        "DOMContentLoaded",
-        initializeGillAI
-    );
-
-} else {
-
-    initializeGillAI();
-
-}
-
-
-/* =========================================================
-   FINAL VERSION CHECK
-========================================================= */
-
-window.GillAI = {
-
-    version:
-        "Ultimate v8",
-
-    sendMessage:
-        sendMessage,
-
-    generateVideo:
-        generateVideo,
-
-    createVideoPanel:
-        createVideoPanel,
-
-    showHome:
-        showHome,
-
-    showChat:
-        showChat,
-
-    showImage:
-        showImage,
-
-    showHistory:
-        showHistory,
-
-    showSettings:
-        showSettings
-
-};
-
 
 console.log(
-    "✅ Gill AI Ultimate v8 script.js loaded."
+    "Gill AI Ultimate v8 — Video API connected ✅"
+);
+
+console.log(
+    "POST:",
+    VIDEO_API_URL
+);
+
+console.log(
+    "STATUS:",
+    VIDEO_STATUS_API_URL
 );
