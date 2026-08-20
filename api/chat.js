@@ -1,123 +1,215 @@
+/* =========================================================
+   Gill AI Ultimate v8
+   api/chat.js
+   OPENROUTER CHAT API
+========================================================= */
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
 
+    // Allow only POST
     if (req.method !== "POST") {
         return res.status(405).json({
+            success: false,
             error: "Method Not Allowed"
         });
     }
 
     try {
 
+        // OpenRouter API Key
         const apiKey =
             process.env.OPENROUTER_API_KEY;
 
         if (!apiKey) {
             return res.status(500).json({
-                error: "OPENROUTER_API_KEY is missing in Vercel."
+                success: false,
+                error:
+                    "OPENROUTER_API_KEY is missing in Vercel Environment Variables."
             });
         }
 
-        const { message } = req.body || {};
+        // Read request body
+        let body = req.body || {};
+
+        // Some setups may send body as string
+        if (typeof body === "string") {
+            try {
+                body = JSON.parse(body);
+            } catch {
+                body = {};
+            }
+        }
+
+        const message =
+            String(
+                body.message ||
+                body.prompt ||
+                ""
+            ).trim();
 
         if (!message) {
             return res.status(400).json({
-                error: "Message required"
+                success: false,
+                error: "Message is required."
             });
         }
 
+        // OpenRouter request
         const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
                 method: "POST",
 
                 headers: {
-                    "Authorization": "Bearer " + apiKey,
-                    "Content-Type": "application/json",
+                    "Authorization":
+                        `Bearer ${apiKey}`,
+
+                    "Content-Type":
+                        "application/json",
+
+                    "Accept":
+                        "application/json",
+
                     "HTTP-Referer":
-                        "https://gill-7290xzwqg-arshdeepgill830-5418s-projects.vercel.app",
+                        "https://gill-ai.vercel.app",
+
                     "X-Title":
-                        "Gill AI Ultimate"
+                        "Gill AI Ultimate v8"
                 },
 
                 body: JSON.stringify({
-                    model: "openrouter/free",
+
+                    model:
+                        "openrouter/free",
 
                     messages: [
+
                         {
                             role: "system",
+
                             content:
-                                "You are Gill AI Ultimate, a helpful AI assistant. Reply clearly in Hindi or English."
+                                "You are Gill AI Ultimate v8, a helpful AI assistant. Answer clearly, naturally and accurately."
                         },
+
                         {
                             role: "user",
-                            content: String(message)
+
+                            content: message
                         }
+
                     ]
+
                 })
             }
         );
 
+        // Read raw response first
         const raw =
             await response.text();
 
-        let data;
+        console.log(
+            "OPENROUTER STATUS:",
+            response.status
+        );
+
+        console.log(
+            "OPENROUTER RESPONSE:",
+            raw.substring(0, 2000)
+        );
+
+        // Parse JSON
+        let data = {};
 
         try {
-            data = JSON.parse(raw);
-        } catch (e) {
 
-            console.error(
-                "OpenRouter response:",
+            data =
                 raw
-            );
+                    ? JSON.parse(raw)
+                    : {};
+
+        } catch (error) {
 
             return res.status(502).json({
+
+                success: false,
+
                 error:
-                    "OpenRouter ने valid JSON नहीं दिया।"
+                    "OpenRouter ने valid JSON response नहीं भेजा।",
+
+                status:
+                    response.status,
+
+                details:
+                    raw.substring(0, 1000)
+
             });
         }
 
+        // OpenRouter error
         if (!response.ok) {
 
-            console.error(
-                "OpenRouter API Error:",
-                data
-            );
+            return res.status(
+                response.status
+            ).json({
 
-            return res.status(response.status).json({
+                success: false,
+
                 error:
                     data?.error?.message ||
-                    "OpenRouter API request failed"
+                    data?.error ||
+                    "OpenRouter request failed.",
+
+                status:
+                    response.status
+
             });
         }
 
+        // Get AI reply
         const reply =
-            data?.choices?.[0]?.message?.content;
+            data?.choices?.[0]?.message?.content ||
+            data?.choices?.[0]?.text ||
+            "";
 
         if (!reply) {
 
-            return res.status(500).json({
+            return res.status(502).json({
+
+                success: false,
+
                 error:
-                    "AI response unavailable"
+                    "AI response में reply नहीं मिला।",
+
+                details:
+                    data
+
             });
         }
 
+        // Success
         return res.status(200).json({
+
+            success: true,
+
             reply: String(reply)
+
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI Server Error:",
+            "Gill AI Chat Error:",
             error
         );
 
         return res.status(500).json({
+
+            success: false,
+
             error:
                 error?.message ||
-                "Server Error"
+                "Internal AI server error."
+
         });
     }
-};
+}
