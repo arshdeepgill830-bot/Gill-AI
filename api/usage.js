@@ -1,89 +1,100 @@
-/* =========================================================
-   Gill AI Ultimate v9
-   api/usage.js
-   USAGE + CREDITS MONITORING
-========================================================= */
+import { neon } from "@neondatabase/serverless";
 
 export default async function handler(req, res) {
-
-    /* -----------------------------------------------------
-       ONLY GET
-    ----------------------------------------------------- */
-
     if (req.method !== "GET") {
-
         return res.status(405).json({
             success: false,
             error: "Method Not Allowed"
         });
-
     }
 
     try {
+        const sql = neon(process.env.DATABASE_URL);
 
-        /*
-         * Demo/default user.
-         *
-         * IMPORTANT:
-         * This is only a temporary foundation.
-         * Real user credits will later use a database
-         * and authenticated user ID.
-         */
+        // Temporary user ID.
+        // बाद में इसे real login/authentication से जोड़ेंगे।
+        const userId =
+            typeof req.query.userId === "string" &&
+            req.query.userId.trim()
+                ? req.query.userId.trim().slice(0, 100)
+                : "guest";
 
-        const usage = {
+        // User मौजूद नहीं है तो Free account बनाओ
+        await sql`
+            INSERT INTO users (
+                id,
+                plan,
+                credits,
+                chat_used,
+                image_used,
+                video_used
+            )
+            VALUES (
+                ${userId},
+                'Free',
+                100,
+                0,
+                0,
+                0
+            )
+            ON CONFLICT (id) DO NOTHING
+        `;
 
-            plan: "Free",
+        // Database से current usage निकालो
+        const rows = await sql`
+            SELECT
+                id,
+                plan,
+                credits,
+                chat_used,
+                image_used,
+                video_used,
+                created_at,
+                updated_at
+            FROM users
+            WHERE id = ${userId}
+            LIMIT 1
+        `;
 
-            credits: 100,
+        if (!rows.length) {
+            return res.status(404).json({
+                success: false,
+                error: "User not found"
+            });
+        }
 
-            chat: {
-                used: 0,
-                limit: 20
-            },
-
-            image: {
-                used: 0,
-                limit: 5
-            },
-
-            video: {
-                used: 0,
-                limit: 1
-            }
-
-        };
-
-        /* -------------------------------------------------
-           RESPONSE
-        ------------------------------------------------- */
+        const user = rows[0];
 
         return res.status(200).json({
-
             success: true,
-
             app: "Gill AI Ultimate v9",
-
-            usage: usage
-
+            usage: {
+                userId: user.id,
+                plan: user.plan,
+                credits: user.credits,
+                chat: {
+                    used: user.chat_used,
+                    limit: 20
+                },
+                image: {
+                    used: user.image_used,
+                    limit: 5
+                },
+                video: {
+                    used: user.video_used,
+                    limit: 1
+                },
+                createdAt: user.created_at,
+                updatedAt: user.updated_at
+            }
         });
 
     } catch (error) {
-
-        console.error(
-            "Gill AI Usage Error:",
-            error
-        );
+        console.error("Gill AI Usage Error:", error);
 
         return res.status(500).json({
-
             success: false,
-
-            error:
-                error?.message ||
-                "Usage service failed."
-
+            error: "Database connection failed"
         });
-
     }
-
 }
