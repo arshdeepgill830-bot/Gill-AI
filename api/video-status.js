@@ -1,7 +1,7 @@
 /* =========================================================
    Gill AI Ultimate
    api/video-status.js
-   FAL.AI + PIXVERSE V6 STATUS
+   MAGIC HOUR VIDEO STATUS
 ========================================================= */
 
 export default async function handler(req, res) {
@@ -16,50 +16,41 @@ export default async function handler(req, res) {
     try {
 
         const apiKey =
-            process.env.FAL_KEY;
+            process.env.MAGIC_HOUR_API_KEY;
 
         if (!apiKey) {
             return res.status(500).json({
                 success: false,
                 error:
-                    "FAL_KEY is missing in Vercel Environment Variables."
+                    "MAGIC_HOUR_API_KEY is missing in Vercel."
             });
         }
 
-        const requestId =
+        const projectId =
             String(
                 req.query?.id ||
                 req.query?.request_id ||
                 ""
             ).trim();
 
-        if (!requestId) {
+        if (!projectId) {
             return res.status(400).json({
                 success: false,
                 error:
-                    "FAL request ID is required."
+                    "Magic Hour project ID is required."
             });
         }
 
-        /* -------------------------------------------------
-           FAL STATUS URL
-        ------------------------------------------------- */
-
-        const statusUrl =
-            "https://queue.fal.run/" +
-            "fal-ai/pixverse/v6/text-to-video/requests/" +
-            encodeURIComponent(requestId) +
-            "/status";
-
-        const statusResponse =
+        const response =
             await fetch(
-                statusUrl,
+                "https://api.magichour.ai/v1/video-projects/" +
+                encodeURIComponent(projectId),
                 {
                     method: "GET",
 
                     headers: {
                         "Authorization":
-                            "Key " + apiKey,
+                            "Bearer " + apiKey,
 
                         "Accept":
                             "application/json"
@@ -67,85 +58,108 @@ export default async function handler(req, res) {
                 }
             );
 
-        const statusRaw =
-            await statusResponse.text();
+        const raw =
+            await response.text();
 
         console.log(
-            "FAL STATUS HTTP:",
-            statusResponse.status
+            "MAGIC HOUR VIDEO STATUS:",
+            response.status
         );
 
         console.log(
-            "FAL STATUS RESPONSE:",
-            statusRaw.substring(0, 3000)
+            "MAGIC HOUR STATUS RESPONSE:",
+            raw.substring(0, 3000)
         );
 
-        let statusData = {};
+        let data = {};
 
         try {
-            statusData =
-                statusRaw
-                    ? JSON.parse(statusRaw)
+            data =
+                raw
+                    ? JSON.parse(raw)
                     : {};
         } catch {
 
             return res.status(502).json({
                 success: false,
                 error:
-                    "fal.ai status ने valid JSON नहीं भेजा।",
+                    "Magic Hour status ने valid JSON नहीं भेजा।",
                 details:
-                    statusRaw.substring(0, 1000)
+                    raw.substring(0, 1000)
             });
 
         }
 
-        if (!statusResponse.ok) {
+        if (!response.ok) {
 
             return res.status(
-                statusResponse.status
+                response.status
             ).json({
+
                 success: false,
+
                 error:
-                    statusData?.detail ||
-                    statusData?.error ||
-                    statusData?.message ||
-                    "fal.ai status request failed."
+                    data?.message ||
+                    data?.error ||
+                    "Magic Hour status request failed.",
+
+                magic_hour_response:
+                    data
+
             });
 
         }
 
         const currentStatus =
             String(
-                statusData?.status ||
-                ""
-            ).toUpperCase();
+                data?.status || ""
+            ).toLowerCase();
 
         /* -------------------------------------------------
-           STILL PROCESSING
+           VIDEO COMPLETE
         ------------------------------------------------- */
 
         if (
-            currentStatus !== "COMPLETED" &&
-            currentStatus !== "SUCCEEDED"
+            currentStatus ===
+            "complete"
         ) {
 
+            let videoUrl = "";
+
             if (
-                currentStatus === "FAILED" ||
-                currentStatus === "ERROR" ||
-                currentStatus === "CANCELLED"
+                Array.isArray(
+                    data?.downloads
+                ) &&
+                data.downloads.length > 0
             ) {
 
-                return res.status(200).json({
+                videoUrl =
+                    data.downloads[0]?.url ||
+                    "";
+
+            }
+
+            if (
+                !videoUrl &&
+                data?.download?.url
+            ) {
+
+                videoUrl =
+                    data.download.url;
+
+            }
+
+            if (!videoUrl) {
+
+                return res.status(502).json({
 
                     success: false,
 
-                    status:
-                        currentStatus,
-
                     error:
-                        statusData?.error ||
-                        statusData?.detail ||
-                        "Video generation failed."
+                        "Video complete हुई लेकिन download URL नहीं मिला.",
+
+                    magic_hour_response:
+                        data
 
                 });
 
@@ -156,138 +170,75 @@ export default async function handler(req, res) {
                 success: true,
 
                 status:
-                    currentStatus ||
-                    "PROCESSING",
+                    "COMPLETED",
 
                 video_url:
-                    "",
+                    String(videoUrl),
 
                 videoUrl:
-                    "",
+                    String(videoUrl),
 
-                message:
-                    "Video अभी तैयार हो रही है।"
+                output:
+                    data?.downloads ||
+                    data?.download ||
+                    null
 
             });
 
         }
 
         /* -------------------------------------------------
-           GET FINAL RESULT
+           FAILED
         ------------------------------------------------- */
 
-        const responseUrl =
-            "https://queue.fal.run/" +
-            "fal-ai/pixverse/v6/text-to-video/requests/" +
-            encodeURIComponent(requestId);
+        if (
+            currentStatus === "error" ||
+            currentStatus === "canceled"
+        ) {
 
-        const resultResponse =
-            await fetch(
-                responseUrl,
-                {
-                    method: "GET",
+            return res.status(200).json({
 
-                    headers: {
-                        "Authorization":
-                            "Key " + apiKey,
-
-                        "Accept":
-                            "application/json"
-                    }
-                }
-            );
-
-        const resultRaw =
-            await resultResponse.text();
-
-        console.log(
-            "FAL RESULT HTTP:",
-            resultResponse.status
-        );
-
-        console.log(
-            "FAL RESULT:",
-            resultRaw.substring(0, 3000)
-        );
-
-        let resultData = {};
-
-        try {
-            resultData =
-                resultRaw
-                    ? JSON.parse(resultRaw)
-                    : {};
-        } catch {
-
-            return res.status(502).json({
                 success: false,
+
+                status:
+                    currentStatus,
+
                 error:
-                    "fal.ai result ने valid JSON नहीं भेजा।"
+                    data?.error?.message ||
+                    data?.error ||
+                    "Magic Hour video generation failed."
+
             });
 
         }
 
-        if (!resultResponse.ok) {
-
-            return res.status(
-                resultResponse.status
-            ).json({
-                success: false,
-                error:
-                    resultData?.detail ||
-                    resultData?.error ||
-                    resultData?.message ||
-                    "fal.ai result request failed."
-            });
-
-        }
-
-        const videoUrl =
-            resultData?.video?.url ||
-            resultData?.output?.video?.url ||
-            resultData?.output?.url ||
-            "";
-
-        if (!videoUrl) {
-
-            return res.status(502).json({
-
-                success: false,
-
-                error:
-                    "Video complete हुई लेकिन video URL नहीं मिला।",
-
-                fal_response:
-                    resultData
-
-            });
-
-        }
+        /* -------------------------------------------------
+           PROCESSING
+        ------------------------------------------------- */
 
         return res.status(200).json({
 
             success: true,
 
             status:
-                "COMPLETED",
+                currentStatus ||
+                "processing",
 
             video_url:
-                String(videoUrl),
+                "",
 
             videoUrl:
-                String(videoUrl),
+                "",
 
-            output:
-                resultData?.video ||
-                resultData?.output ||
-                null
+            message:
+                "Video अभी तैयार हो रही है।"
 
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI FAL Video Status Error:",
+            "Gill AI Magic Hour Status Error:",
             error
         );
 
