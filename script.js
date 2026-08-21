@@ -1354,45 +1354,31 @@ function removeVideoPanel() {
     videoPreview = null;
 
 }
-
-
 /* =========================================================
-   GENERATE VIDEO
+   GENERATE VIDEO — REPLICATE
 ========================================================= */
 
 async function generateVideo() {
 
     if (!videoPrompt) {
-
         createVideoPanel();
         return;
-
     }
 
     const prompt =
         videoPrompt.value.trim();
 
     if (!prompt) {
-
-        alert(
-            "पहले video prompt लिखें।"
-        );
-
+        alert("पहले video prompt लिखें।");
         videoPrompt.focus();
-
         return;
-
     }
 
     const duration =
-        Number(
-            videoDuration?.value || 5
-        );
+        Number(videoDuration?.value || 5);
 
     const aspectRatio =
-        String(
-            videoAspectRatio?.value || "9:16"
-        );
+        String(videoAspectRatio?.value || "9:16");
 
     const status =
         document.getElementById(
@@ -1400,37 +1386,27 @@ async function generateVideo() {
         );
 
     if (status) {
-
         status.innerHTML =
-            "🎬 <b>AI Video Generation शुरू...</b>\n\n" +
-            "📝 Prompt:\n" +
+            "🎬 <b>AI Video Generation शुरू...</b><br><br>" +
+            "📝 Prompt:<br>" +
             escapeHTML(prompt) +
-            "\n\n" +
+            "<br><br>" +
             "⏱️ Duration: " +
             duration +
-            " seconds\n" +
+            " seconds<br>" +
             "📐 Ratio: " +
             escapeHTML(aspectRatio) +
-            "\n\n" +
-            "⏳ Video request भेजी जा रही है...";
-
+            "<br><br>" +
+            "⏳ Replicate को request भेजी जा रही है...";
     }
 
     if (generateVideoBtn) {
-
-        generateVideoBtn.disabled =
-            true;
-
+        generateVideoBtn.disabled = true;
         generateVideoBtn.textContent =
             "⏳ Generating...";
-
     }
 
     try {
-
-        /* -------------------------------------------------
-           SEND REQUEST TO /api/video
-        ------------------------------------------------- */
 
         const response =
             await fetch(
@@ -1441,29 +1417,20 @@ async function generateVideo() {
                     headers: {
                         "Content-Type":
                             "application/json",
-
                         "Accept":
                             "application/json"
                     },
 
-                    body:
-                        JSON.stringify({
-                            prompt:
-                                prompt,
-
-                            duration:
-                                duration,
-
-                            aspectRatio:
-                                aspectRatio
-                        })
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        duration: duration,
+                        aspectRatio: aspectRatio
+                    })
                 }
             );
 
-
         const raw =
             await response.text();
-
 
         console.log(
             "VIDEO API STATUS:",
@@ -1475,89 +1442,62 @@ async function generateVideo() {
             raw
         );
 
-
         let data = {};
 
         try {
-
             data =
                 raw
                     ? JSON.parse(raw)
                     : {};
-
-        } catch (error) {
-
+        } catch {
             throw new Error(
                 "Video server ने valid JSON नहीं भेजा।"
             );
-
         }
-
 
         if (!response.ok) {
-
             throw new Error(
                 data?.error ||
+                data?.details ||
                 "Video API request failed."
             );
-
         }
 
-
-        if (
-            data?.success !== true
-        ) {
-
+        if (data?.success !== true) {
             throw new Error(
                 data?.error ||
                 "Video request failed."
             );
-
         }
 
+        /*
+         * Replicate prediction ID
+         */
 
-        const requestId =
-            data?.request_id ||
-            data?.requestId ||
+        const predictionId =
+            data?.id ||
+            data?.prediction_id ||
+            data?.predictionId ||
             "";
 
-
-        const statusUrl =
-            data?.status_url ||
-            data?.statusUrl ||
-            "";
-
-
-        if (!requestId) {
-
+        if (!predictionId) {
             throw new Error(
-                "fal.ai request ID नहीं मिला।"
+                "Replicate prediction ID नहीं मिला।"
             );
-
         }
-
 
         if (status) {
-
             status.innerHTML =
-                "✅ <b>Video request submitted.</b>\n\n" +
-                "🆔 Request ID:\n" +
-                escapeHTML(requestId) +
-                "\n\n" +
+                "✅ <b>Video request submitted.</b><br><br>" +
+                "🆔 Prediction ID:<br>" +
+                escapeHTML(predictionId) +
+                "<br><br>" +
                 "⏳ Video generate हो रही है...";
-
         }
 
-
-        /* -------------------------------------------------
-           CHECK RESULT
-        ------------------------------------------------- */
-
         await checkVideoResult(
-            statusUrl,
-            requestId
+            predictionId
         );
-
 
     } catch (error) {
 
@@ -1567,38 +1507,194 @@ async function generateVideo() {
         );
 
         if (status) {
-
             status.innerHTML =
-                "❌ <b>Video Error:</b>\n\n" +
+                "❌ <b>Video Error:</b><br><br>" +
                 escapeHTML(
                     error?.message ||
                     "Video generation failed."
                 );
-
         }
 
     } finally {
 
         if (generateVideoBtn) {
-
-            generateVideoBtn.disabled =
-                false;
-
+            generateVideoBtn.disabled = false;
             generateVideoBtn.textContent =
                 "🎬 Generate Video";
-
         }
-
     }
-
 }
 
 
 /* =========================================================
-   CHECK VIDEO RESULT
+   CHECK REPLICATE VIDEO RESULT
 ========================================================= */
 
 async function checkVideoResult(
+    predictionId
+) {
+
+    const status =
+        document.getElementById(
+            "gillVideoStatus"
+        );
+
+    const maxAttempts = 60;
+    const waitTime = 5000;
+
+    for (
+        let attempt = 1;
+        attempt <= maxAttempts;
+        attempt++
+    ) {
+
+        try {
+
+            if (status) {
+                status.innerHTML =
+                    "🎬 <b>Video generate हो रही है...</b><br><br>" +
+                    "⏳ Status check: " +
+                    attempt +
+                    "/" +
+                    maxAttempts;
+            }
+
+            /*
+             * Our Vercel endpoint checks
+             * the Replicate prediction.
+             */
+
+            const response =
+                await fetch(
+                    "/api/video-status?id=" +
+                    encodeURIComponent(
+                        predictionId
+                    ),
+                    {
+                        method: "GET",
+
+                        headers: {
+                            "Accept":
+                                "application/json"
+                        }
+                    }
+                );
+
+            const raw =
+                await response.text();
+
+            console.log(
+                "VIDEO STATUS HTTP:",
+                response.status
+            );
+
+            console.log(
+                "VIDEO STATUS RAW:",
+                raw
+            );
+
+            let data = {};
+
+            try {
+                data =
+                    raw
+                        ? JSON.parse(raw)
+                        : {};
+            } catch {
+                throw new Error(
+                    "Video status server ने valid JSON नहीं भेजा।"
+                );
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    data?.error ||
+                    data?.details ||
+                    "Video status request failed."
+                );
+            }
+
+            const currentStatus =
+                String(
+                    data?.status ||
+                    ""
+                ).toLowerCase();
+
+            /*
+             * Replicate completed
+             */
+
+            if (
+                currentStatus === "succeeded" ||
+                data?.video_url ||
+                data?.videoUrl
+            ) {
+
+                const videoUrl =
+                    data?.video_url ||
+                    data?.videoUrl ||
+                    data?.output?.url ||
+                    data?.output ||
+                    "";
+
+                if (!videoUrl) {
+                    throw new Error(
+                        "Video complete हुई लेकिन URL नहीं मिला।"
+                    );
+                }
+
+                showGeneratedVideo(
+                    videoUrl
+                );
+
+                return;
+            }
+
+            /*
+             * Replicate failed
+             */
+
+            if (
+                currentStatus === "failed" ||
+                currentStatus === "canceled" ||
+                currentStatus === "cancelled"
+            ) {
+
+                throw new Error(
+                    data?.error ||
+                    data?.message ||
+                    "Replicate video generation failed."
+                );
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Video status error:",
+                error
+            );
+
+            if (
+                attempt >= maxAttempts
+            ) {
+                throw error;
+            }
+        }
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    waitTime
+                )
+        );
+    }
+
+    throw new Error(
+        "Video generation timeout."
+    );
+}
+
     statusUrl,
     requestId
 ) {
