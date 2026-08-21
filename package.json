@@ -1,0 +1,10 @@
+{
+  "name": "gill-ai-ultimate-v9",
+  "version": "9.0.0",
+  "private": true,
+  "description": "Gill AI Ultimate v9",
+  "type": "module",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1"
+  }
+}
