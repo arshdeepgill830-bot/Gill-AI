@@ -1,7 +1,7 @@
 /* =========================================================
    Gill AI Ultimate
    api/video.js
-   FAL.AI + PIXVERSE V6
+   MAGIC HOUR TEXT-TO-VIDEO
 ========================================================= */
 
 export default async function handler(req, res) {
@@ -16,13 +16,13 @@ export default async function handler(req, res) {
     try {
 
         const apiKey =
-            process.env.FAL_KEY;
+            process.env.MAGIC_HOUR_API_KEY;
 
         if (!apiKey) {
             return res.status(500).json({
                 success: false,
                 error:
-                    "FAL_KEY is missing in Vercel Environment Variables."
+                    "MAGIC_HOUR_API_KEY is missing in Vercel."
             });
         }
 
@@ -39,82 +39,63 @@ export default async function handler(req, res) {
         const prompt =
             String(body.prompt || "").trim();
 
+        let duration =
+            Number(body.duration || 5);
+
         let aspectRatio =
             String(
-                body.aspectRatio ||
-                "9:16"
-            );
-
-        let duration =
-            Number(
-                body.duration || 5
+                body.aspectRatio || "9:16"
             );
 
         if (!prompt) {
             return res.status(400).json({
                 success: false,
-                error: "Video prompt is required."
+                error:
+                    "Video prompt is required."
             });
         }
 
-        const allowedRatios = [
-            "9:16",
-            "16:9",
-            "1:1",
-            "4:3",
-            "3:4",
-            "2:3",
-            "3:2",
-            "21:9"
-        ];
-
-        if (!allowedRatios.includes(aspectRatio)) {
-            aspectRatio = "9:16";
-        }
+        /* -------------------------------------------------
+           SAFE SETTINGS
+        ------------------------------------------------- */
 
         if (
             !Number.isFinite(duration) ||
             duration < 1 ||
-            duration > 15
+            duration > 30
         ) {
             duration = 5;
         }
 
         duration = Math.round(duration);
 
+        const allowedRatios = [
+            "9:16",
+            "16:9",
+            "1:1"
+        ];
+
+        if (
+            !allowedRatios.includes(
+                aspectRatio
+            )
+        ) {
+            aspectRatio = "9:16";
+        }
+
         /* -------------------------------------------------
-           FAL.AI PIXVERSE V6
+           MAGIC HOUR API
         ------------------------------------------------- */
-
-        const endpoint =
-            "https://queue.fal.run/" +
-            "fal-ai/pixverse/v6/text-to-video";
-
-        const input = {
-            prompt: prompt,
-            aspect_ratio: aspectRatio,
-            resolution: "360p",
-            duration: duration,
-            generate_audio_switch: false
-        };
-
-        console.log(
-            "FAL VIDEO REQUEST:",
-            {
-                endpoint,
-                input
-            }
-        );
 
         const response =
             await fetch(
-                endpoint,
+                "https://api.magichour.ai/v1/text-to-video",
                 {
                     method: "POST",
 
                     headers: {
                         "Authorization":
-                            "Key " + apiKey,
+                            "Bearer " + apiKey,
 
                         "Content-Type":
                             "application/json",
@@ -124,7 +105,32 @@ export default async function handler(req, res) {
                     },
 
                     body:
-                        JSON.stringify(input)
+                        JSON.stringify({
+
+                            name:
+                                "Gill AI Video",
+
+                            end_seconds:
+                                duration,
+
+                            aspect_ratio:
+                                aspectRatio,
+
+                            resolution:
+                                "480p",
+
+                            model:
+                                "ltx-2.3",
+
+                            audio:
+                                false,
+
+                            style: {
+                                prompt:
+                                    prompt
+                            }
+
+                        })
                 }
             );
 
@@ -132,12 +138,12 @@ export default async function handler(req, res) {
             await response.text();
 
         console.log(
-            "FAL VIDEO STATUS:",
+            "MAGIC HOUR STATUS:",
             response.status
         );
 
         console.log(
-            "FAL VIDEO RESPONSE:",
+            "MAGIC HOUR RESPONSE:",
             raw.substring(0, 3000)
         );
 
@@ -153,7 +159,7 @@ export default async function handler(req, res) {
             return res.status(502).json({
                 success: false,
                 error:
-                    "fal.ai ने valid JSON response नहीं भेजा।",
+                    "Magic Hour ने valid JSON response नहीं भेजा।",
                 status:
                     response.status,
                 details:
@@ -162,53 +168,53 @@ export default async function handler(req, res) {
 
         }
 
+        /* -------------------------------------------------
+           API ERROR
+        ------------------------------------------------- */
+
         if (!response.ok) {
 
             return res.status(
                 response.status
             ).json({
+
                 success: false,
+
                 error:
-                    data?.detail ||
-                    data?.error ||
                     data?.message ||
-                    "fal.ai video request failed.",
-                fal_response:
+                    data?.error ||
+                    data?.detail ||
+                    "Magic Hour video request failed.",
+
+                magic_hour_response:
                     data
+
             });
 
         }
 
-        /*
-         * fal.ai queue response normally contains:
-         * request_id
-         * status_url
-         * response_url
-         */
+        /* -------------------------------------------------
+           VIDEO PROJECT ID
+        ------------------------------------------------- */
 
-        const requestId =
-            data?.request_id ||
-            data?.requestId ||
+        const projectId =
+            data?.id ||
+            data?.video_id ||
+            data?.videoId ||
             "";
 
-        const statusUrl =
-            data?.status_url ||
-            data?.statusUrl ||
-            "";
-
-        const responseUrl =
-            data?.response_url ||
-            data?.responseUrl ||
-            "";
-
-        if (!requestId) {
+        if (!projectId) {
 
             return res.status(502).json({
+
                 success: false,
+
                 error:
-                    "fal.ai request ID नहीं मिला।",
-                fal_response:
+                    "Magic Hour video project ID नहीं मिला।",
+
+                magic_hour_response:
                     data
+
             });
 
         }
@@ -221,22 +227,16 @@ export default async function handler(req, res) {
                 "processing",
 
             request_id:
-                requestId,
+                projectId,
 
             requestId:
-                requestId,
+                projectId,
 
-            status_url:
-                statusUrl,
+            project_id:
+                projectId,
 
-            statusUrl:
-                statusUrl,
-
-            response_url:
-                responseUrl,
-
-            responseUrl:
-                responseUrl,
+            projectId:
+                projectId,
 
             aspectRatio:
                 aspectRatio,
@@ -245,17 +245,17 @@ export default async function handler(req, res) {
                 duration,
 
             resolution:
-                "360p",
+                "480p",
 
             model:
-                "fal-ai/pixverse/v6/text-to-video"
+                "ltx-2.3"
 
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI FAL Video Error:",
+            "Gill AI Magic Hour Video Error:",
             error
         );
 
