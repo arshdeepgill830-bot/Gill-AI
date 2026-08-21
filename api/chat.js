@@ -182,20 +182,3 @@ export default async function handler(req, res) {
     }
 }
 
-अब ध्यान से
-
-1. GitHub में "api/chat.js" खोलो।
-2. पूरा पुराना code हटाओ।
-3. ऊपर वाला पूरा code paste करो।
-4. Commit changes दबाओ।
-5. Vercel में नया deployment Ready होने दो।
-6. फिर Gill AI में एक chat भेजो।
-
-अगर सब सही हुआ तो:
-
-100 credits → 99 credits
-Chat used: 0 → 1
-
-और "/api/usage" खोलने पर नया balance दिखेगा।
-
-⚠️ एक महत्वपूर्ण सीमा: अभी सभी users "guest" ID इस्तेमाल कर रहे हैं। इसलिए बाद में authentication जोड़ना जरूरी होगा, वरना सभी users एक ही credits balance share करेंगे।
