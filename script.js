@@ -227,31 +227,171 @@ function showChat() {
 
 }
 
-
-/* =========================================================
-   IMAGE PAGE
-========================================================= */
-
 function showImage() {
 
-    setActiveButton(
-        imageBtn
-    );
+    setActiveButton(imageBtn);
 
     removeVideoPanel();
 
-    addMessage(
+    addMessage(`
+        <div style="width:100%;">
+            <h3>🎨 AI Image Generator</h3>
 
-        "🎨 <b>AI Image</b><br><br>" +
+            <p>
+                अपनी image का description लिखें:
+            </p>
 
-        "AI Image Generator selected.",
+            <textarea
+                id="gillImagePrompt"
+                placeholder="Example: A black sports bike on a rainy road at night, cinematic lighting..."
+                style="
+                    width:100%;
+                    min-height:110px;
+                    padding:12px;
+                    border-radius:12px;
+                    resize:vertical;
+                    box-sizing:border-box;
+                "
+            ></textarea>
 
-        "ai"
+            <button
+                id="gillGenerateImage"
+                onclick="generateGillImage()"
+                style="
+                    margin-top:10px;
+                    padding:12px 18px;
+                    border-radius:12px;
+                    border:none;
+                    cursor:pointer;
+                    font-weight:bold;
+                "
+            >
+                🎨 Generate Image
+            </button>
 
-    );
-
+            <div
+                id="gillImageResult"
+                style="
+                    margin-top:15px;
+                    text-align:center;
+                "
+            ></div>
+        </div>
+    `, "ai");
 }
 
+
+async function generateGillImage() {
+
+    const promptElement =
+        document.getElementById("gillImagePrompt");
+
+    const button =
+        document.getElementById("gillGenerateImage");
+
+    const result =
+        document.getElementById("gillImageResult");
+
+    if (!promptElement || !button || !result) {
+        return;
+    }
+
+    const prompt =
+        promptElement.value.trim();
+
+    if (!prompt) {
+        result.innerHTML =
+            "⚠️ पहले image का description लिखें।";
+        return;
+    }
+
+    button.disabled = true;
+    button.innerText = "⏳ Generating...";
+
+    result.innerHTML =
+        "🎨 आपकी image बनाई जा रही है...";
+
+    try {
+
+        const response = await fetch(
+            "/api/image",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    prompt: prompt
+                })
+            }
+        );
+
+        const data =
+            await response.json();
+
+        if (!response.ok || !data.success) {
+
+            result.innerHTML =
+                "❌ " +
+                (data.error ||
+                 "Image generation failed.");
+
+            return;
+        }
+
+        result.innerHTML = `
+            <img
+                src="${data.image}"
+                alt="Gill AI Generated Image"
+                style="
+                    max-width:100%;
+                    border-radius:16px;
+                    display:block;
+                    margin:10px auto;
+                "
+            >
+
+            <p>
+                💰 Credits remaining:
+                <b>${data.credits}</b>
+            </p>
+
+            <a
+                href="${data.image}"
+                download="gill-ai-image.png"
+                style="
+                    display:inline-block;
+                    margin-top:8px;
+                    padding:10px 16px;
+                    border-radius:10px;
+                    text-decoration:none;
+                    font-weight:bold;
+                "
+            >
+                ⬇️ Save Image
+            </a>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Gill AI Image Error:",
+            error
+        );
+
+        result.innerHTML =
+            "❌ Server error. Please try again.";
+
+    } finally {
+
+        button.disabled = false;
+        button.innerText =
+            "🎨 Generate Image";
+    }
+}
 
 /* =========================================================
    VIDEO EDITOR
