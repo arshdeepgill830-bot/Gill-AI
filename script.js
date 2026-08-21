@@ -1524,20 +1524,27 @@ async function generateVideo() {
         }
     }
 }
-
-
 /* =========================================================
    CHECK REPLICATE VIDEO RESULT
 ========================================================= */
 
 async function checkVideoResult(
-    predictionId
+    statusUrl,
+    requestId
 ) {
 
     const status =
         document.getElementById(
             "gillVideoStatus"
         );
+
+    if (!requestId) {
+
+        throw new Error(
+            "Replicate prediction ID नहीं मिला।"
+        );
+
+    }
 
     const maxAttempts = 60;
     const waitTime = 5000;
@@ -1551,24 +1558,21 @@ async function checkVideoResult(
         try {
 
             if (status) {
+
                 status.innerHTML =
                     "🎬 <b>Video generate हो रही है...</b><br><br>" +
                     "⏳ Status check: " +
                     attempt +
                     "/" +
                     maxAttempts;
-            }
 
-            /*
-             * Our Vercel endpoint checks
-             * the Replicate prediction.
-             */
+            }
 
             const response =
                 await fetch(
                     "/api/video-status?id=" +
                     encodeURIComponent(
-                        predictionId
+                        requestId
                     ),
                     {
                         method: "GET",
@@ -1596,22 +1600,27 @@ async function checkVideoResult(
             let data = {};
 
             try {
+
                 data =
                     raw
                         ? JSON.parse(raw)
                         : {};
+
             } catch {
+
                 throw new Error(
                     "Video status server ने valid JSON नहीं भेजा।"
                 );
+
             }
 
             if (!response.ok) {
+
                 throw new Error(
                     data?.error ||
-                    data?.details ||
                     "Video status request failed."
                 );
+
             }
 
             const currentStatus =
@@ -1620,230 +1629,25 @@ async function checkVideoResult(
                     ""
                 ).toLowerCase();
 
-            /*
-             * Replicate completed
-             */
-
-            if (
-                currentStatus === "succeeded" ||
+            const videoUrl =
                 data?.video_url ||
-                data?.videoUrl
-            ) {
-
-                const videoUrl =
-                    data?.video_url ||
-                    data?.videoUrl ||
-                    data?.output?.url ||
-                    data?.output ||
-                    "";
-
-                if (!videoUrl) {
-                    throw new Error(
-                        "Video complete हुई लेकिन URL नहीं मिला।"
-                    );
-                }
-
-                showGeneratedVideo(
-                    videoUrl
-                );
-
-                return;
-            }
-
-            /*
-             * Replicate failed
-             */
-
-            if (
-                currentStatus === "failed" ||
-                currentStatus === "canceled" ||
-                currentStatus === "cancelled"
-            ) {
-
-                throw new Error(
-                    data?.error ||
-                    data?.message ||
-                    "Replicate video generation failed."
-                );
-            }
-
-        } catch (error) {
-
-            console.error(
-                "Video status error:",
-                error
-            );
-
-            if (
-                attempt >= maxAttempts
-            ) {
-                throw error;
-            }
-        }
-
-        await new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    waitTime
-                )
-        );
-    }
-
-    throw new Error(
-        "Video generation timeout."
-    );
-}
-
-    statusUrl,
-    requestId
-) {
-
-    const status =
-        document.getElementById(
-            "gillVideoStatus"
-        );
-
-
-    let url =
-        statusUrl;
-
-
-    /*
-       Fallback status URL.
-       Normally /api/video already returns
-       status_url, so this is only a fallback.
-    */
-
-    if (!url) {
-
-        throw new Error(
-            "Video status URL नहीं मिला।"
-        );
-
-    }
-
-
-    const maxAttempts =
-        60;
-
-
-    const waitTime =
-        5000;
-
-
-    for (
-        let attempt = 1;
-        attempt <= maxAttempts;
-        attempt++
-    ) {
-
-        try {
-
-            if (status) {
-
-                status.innerHTML =
-                    "🎬 <b>Video generate हो रही है...</b>\n\n" +
-                    "⏳ Status check: " +
-                    attempt +
-                    "/" +
-                    maxAttempts;
-
-            }
-
-
-            /*
-             * Send fal.ai status URL through our
-             * Vercel endpoint.
-             */
-
-            const response =
-                await fetch(
-                    "/api/video-status?url=" +
-                    encodeURIComponent(url),
-                    {
-                        method: "GET",
-
-                        headers: {
-                            "Accept":
-                                "application/json"
-                        }
-                    }
-                );
-
-
-            const raw =
-                await response.text();
-
-
-            console.log(
-                "VIDEO STATUS HTTP:",
-                response.status
-            );
-
-            console.log(
-                "VIDEO STATUS RAW:",
-                raw
-            );
-
-
-            let data = {};
-
-            try {
-
-                data =
-                    raw
-                        ? JSON.parse(raw)
-                        : {};
-
-            } catch (error) {
-
-                throw new Error(
-                    "Video status server ने valid JSON नहीं भेजा।"
-                );
-
-            }
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data?.error ||
-                    "Video status request failed."
-                );
-
-            }
-
-
-            const currentStatus =
-                String(
-                    data?.status ||
-                    ""
-                ).toUpperCase();
-
+                data?.videoUrl ||
+                "";
 
             /* -------------------------------------------------
                VIDEO COMPLETE
             ------------------------------------------------- */
 
-            const videoUrl =
-                data?.video_url ||
-                data?.videoUrl ||
-                data?.video?.url ||
-                data?.output?.video?.url ||
-                data?.output?.url ||
-                "";
-
-
             if (
-                currentStatus === "COMPLETED" ||
+                currentStatus ===
+                    "succeeded" ||
                 videoUrl
             ) {
 
                 if (!videoUrl) {
 
                     throw new Error(
-                        "Video complete हुई लेकिन URL नहीं मिला।"
+                        "Video complete हुई लेकिन video URL नहीं मिला।"
                     );
 
                 }
@@ -1856,21 +1660,22 @@ async function checkVideoResult(
 
             }
 
-
             /* -------------------------------------------------
                VIDEO FAILED
             ------------------------------------------------- */
 
             if (
-                currentStatus === "FAILED" ||
-                currentStatus === "ERROR" ||
-                currentStatus === "CANCELLED"
+                currentStatus ===
+                    "failed" ||
+                currentStatus ===
+                    "canceled" ||
+                currentStatus ===
+                    "cancelled"
             ) {
 
                 throw new Error(
                     data?.error ||
-                    data?.message ||
-                    "fal.ai video generation failed."
+                    "Replicate video generation failed."
                 );
 
             }
@@ -1882,14 +1687,9 @@ async function checkVideoResult(
                 error
             );
 
-
-            /*
-             * Retry temporary errors until
-             * maximum attempts are reached.
-             */
-
             if (
-                attempt >= maxAttempts
+                attempt >=
+                maxAttempts
             ) {
 
                 throw error;
@@ -1897,7 +1697,6 @@ async function checkVideoResult(
             }
 
         }
-
 
         await new Promise(
             resolve =>
@@ -1909,13 +1708,11 @@ async function checkVideoResult(
 
     }
 
-
     throw new Error(
         "Video generation timeout."
     );
 
 }
-
 
 /* =========================================================
    DISPLAY GENERATED VIDEO
