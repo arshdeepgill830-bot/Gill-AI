@@ -1,4 +1,5 @@
-import { neon } from "@neondatabase/serverless";
+
+   import { neon } from "@neondatabase/serverless";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") {
@@ -24,7 +25,6 @@ export default async function handler(req, res) {
             });
         }
 
-        // Create user if needed
         await sql`
             INSERT INTO users (
                 id,
@@ -45,7 +45,6 @@ export default async function handler(req, res) {
             ON CONFLICT (id) DO NOTHING
         `;
 
-        // Deduct 5 credits atomically
         const reserved = await sql`
             UPDATE users
             SET
@@ -82,8 +81,12 @@ export default async function handler(req, res) {
                         "Gill AI Ultimate v9"
                 },
                 body: JSON.stringify({
-                    model: "qwen/qwen-image-3",
-                    prompt: prompt
+                    model: "google/gemini-2.5-flash-image",
+                    prompt: prompt,
+                    n: 1,
+                    aspect_ratio: "1:1",
+                    resolution: "1K",
+                    output_format: "png"
                 })
             }
         );
@@ -99,7 +102,6 @@ export default async function handler(req, res) {
         }
 
         if (!response.ok || !data) {
-
             await sql`
                 UPDATE users
                 SET
@@ -119,12 +121,11 @@ export default async function handler(req, res) {
             });
         }
 
-        const image =
-            data?.data?.[0]?.url ||
-            data?.data?.[0]?.b64_json;
+        const imageData = data?.data?.[0]?.b64_json;
+        const mediaType =
+            data?.data?.[0]?.media_type || "image/png";
 
-        if (!image) {
-
+        if (!imageData) {
             await sql`
                 UPDATE users
                 SET
@@ -143,12 +144,11 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
             success: true,
-            image: image,
+            image: `data:${mediaType};base64,${imageData}`,
             credits: reserved[0].credits
         });
 
     } catch (error) {
-
         console.error(
             "Gill AI Image Error:",
             error
