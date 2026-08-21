@@ -6,10 +6,7 @@
 
 export default async function handler(req, res) {
 
-    /* -----------------------------------------------------
-       ONLY POST
-    ----------------------------------------------------- */
-
+    // ONLY POST
     if (req.method !== "POST") {
 
         return res.status(405).json({
@@ -21,9 +18,9 @@ export default async function handler(req, res) {
 
     try {
 
-        /* -------------------------------------------------
-           OPENROUTER API KEY
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // OPENROUTER API KEY
+        // -------------------------------------------------
 
         const apiKey =
             process.env.OPENROUTER_API_KEY;
@@ -38,9 +35,9 @@ export default async function handler(req, res) {
 
         }
 
-        /* -------------------------------------------------
-           READ REQUEST BODY
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // READ BODY
+        // -------------------------------------------------
 
         let body = req.body || {};
 
@@ -54,7 +51,7 @@ export default async function handler(req, res) {
 
                 return res.status(400).json({
                     success: false,
-                    error: "Invalid JSON request body."
+                    error: "Invalid JSON body."
                 });
 
             }
@@ -77,14 +74,13 @@ export default async function handler(req, res) {
 
         }
 
-        /* -------------------------------------------------
-           OPENROUTER REQUEST
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // OPENROUTER REQUEST
+        // -------------------------------------------------
 
         const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
-
                 method: "POST",
 
                 headers: {
@@ -117,7 +113,7 @@ export default async function handler(req, res) {
                             role: "system",
 
                             content:
-                                "You are Gill AI Ultimate v8. You are a helpful, friendly AI assistant. Answer clearly and naturally. Reply in the same language as the user."
+                                "You are Gill AI Ultimate v8, a helpful and friendly AI assistant. Reply in the same language as the user. Give clear and useful answers."
                         },
 
                         {
@@ -134,9 +130,9 @@ export default async function handler(req, res) {
             }
         );
 
-        /* -------------------------------------------------
-           READ RAW RESPONSE
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // READ RESPONSE
+        // -------------------------------------------------
 
         const raw =
             await response.text();
@@ -148,12 +144,15 @@ export default async function handler(req, res) {
 
         console.log(
             "OPENROUTER RESPONSE:",
-            raw.substring(0, 3000)
+            raw.substring(
+                0,
+                3000
+            )
         );
 
-        /* -------------------------------------------------
-           PARSE JSON
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // PARSE JSON
+        // -------------------------------------------------
 
         let data = {};
 
@@ -177,15 +176,18 @@ export default async function handler(req, res) {
                     response.status,
 
                 details:
-                    raw.substring(0, 1000)
+                    raw.substring(
+                        0,
+                        1000
+                    )
 
             });
 
         }
 
-        /* -------------------------------------------------
-           OPENROUTER ERROR
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // OPENROUTER ERROR
+        // -------------------------------------------------
 
         if (!response.ok) {
 
@@ -207,15 +209,18 @@ export default async function handler(req, res) {
                     "OpenRouter request failed.",
 
                 status:
-                    response.status
+                    response.status,
+
+                details:
+                    data
 
             });
 
         }
 
-        /* -------------------------------------------------
-           GET AI REPLY
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // GET AI REPLY
+        // -------------------------------------------------
 
         let reply =
             data?.choices?.[0]?.message?.content;
@@ -238,28 +243,33 @@ export default async function handler(req, res) {
                 success: false,
 
                 error:
-                    "AI response में reply नहीं मिला।"
+                    "AI response में reply नहीं मिला।",
+
+                response:
+                    data
 
             });
 
         }
 
-        /* -------------------------------------------------
-           SUCCESS
-        ------------------------------------------------- */
+        // -------------------------------------------------
+        // SUCCESS
+        // -------------------------------------------------
 
         return res.status(200).json({
 
-            success: true,
+            success:
+                true,
 
-            reply: reply
+            reply:
+                reply
 
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI Chat Server Error:",
+            "Gill AI Chat Error:",
             error
         );
 
