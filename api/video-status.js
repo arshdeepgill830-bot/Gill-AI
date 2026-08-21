@@ -1,3 +1,9 @@
+/* =========================================================
+   Gill AI Ultimate
+   api/video-status.js
+   FAL.AI + PIXVERSE V6 STATUS
+========================================================= */
+
 export default async function handler(req, res) {
 
     if (req.method !== "GET") {
@@ -9,139 +15,292 @@ export default async function handler(req, res) {
 
     try {
 
-        const predictionId =
-            String(req.query?.id || "").trim();
+        const apiKey =
+            process.env.FAL_KEY;
 
-        if (!predictionId) {
-            return res.status(400).json({
-                success: false,
-                error: "Prediction ID is required."
-            });
-        }
-
-        const token =
-            process.env.REPLICATE_API_TOKEN;
-
-        if (!token) {
+        if (!apiKey) {
             return res.status(500).json({
                 success: false,
                 error:
-                    "REPLICATE_API_TOKEN is missing in Vercel."
+                    "FAL_KEY is missing in Vercel Environment Variables."
             });
         }
 
-        const response =
+        const requestId =
+            String(
+                req.query?.id ||
+                req.query?.request_id ||
+                ""
+            ).trim();
+
+        if (!requestId) {
+            return res.status(400).json({
+                success: false,
+                error:
+                    "FAL request ID is required."
+            });
+        }
+
+        /* -------------------------------------------------
+           FAL STATUS URL
+        ------------------------------------------------- */
+
+        const statusUrl =
+            "https://queue.fal.run/" +
+            "fal-ai/pixverse/v6/text-to-video/requests/" +
+            encodeURIComponent(requestId) +
+            "/status";
+
+        const statusResponse =
             await fetch(
-                "https://api.replicate.com/v1/predictions/" +
-                encodeURIComponent(predictionId),
+                statusUrl,
                 {
                     method: "GET",
+
                     headers: {
                         "Authorization":
-                            "Bearer " + token,
-                        "Content-Type":
+                            "Key " + apiKey,
+
+                        "Accept":
                             "application/json"
                     }
                 }
             );
 
-        const data =
-            await response.json();
+        const statusRaw =
+            await statusResponse.text();
 
-        if (!response.ok) {
+        console.log(
+            "FAL STATUS HTTP:",
+            statusResponse.status
+        );
 
-            console.error(
-                "Replicate Status Error:",
-                data
-            );
+        console.log(
+            "FAL STATUS RESPONSE:",
+            statusRaw.substring(0, 3000)
+        );
 
-            return res.status(response.status).json({
+        let statusData = {};
+
+        try {
+            statusData =
+                statusRaw
+                    ? JSON.parse(statusRaw)
+                    : {};
+        } catch {
+
+            return res.status(502).json({
                 success: false,
                 error:
-                    data?.detail ||
-                    data?.error ||
-                    "Replicate status request failed."
+                    "fal.ai status ने valid JSON नहीं भेजा।",
+                details:
+                    statusRaw.substring(0, 1000)
             });
+
+        }
+
+        if (!statusResponse.ok) {
+
+            return res.status(
+                statusResponse.status
+            ).json({
+                success: false,
+                error:
+                    statusData?.detail ||
+                    statusData?.error ||
+                    statusData?.message ||
+                    "fal.ai status request failed."
+            });
+
         }
 
         const currentStatus =
             String(
-                data?.status || ""
-            ).toLowerCase();
+                statusData?.status ||
+                ""
+            ).toUpperCase();
 
-        let videoUrl = "";
+        /* -------------------------------------------------
+           STILL PROCESSING
+        ------------------------------------------------- */
 
-        if (data?.output) {
+        if (
+            currentStatus !== "COMPLETED" &&
+            currentStatus !== "SUCCEEDED"
+        ) {
 
             if (
-                Array.isArray(data.output)
+                currentStatus === "FAILED" ||
+                currentStatus === "ERROR" ||
+                currentStatus === "CANCELLED"
             ) {
-                videoUrl =
-                    data.output[0] || "";
-            } else {
-                videoUrl =
-                    String(data.output);
-            }
-        }
 
-        if (
-            currentStatus === "succeeded"
-        ) {
+                return res.status(200).json({
 
-            if (!videoUrl) {
-                return res.status(502).json({
                     success: false,
+
+                    status:
+                        currentStatus,
+
                     error:
-                        "Video completed but no video URL was returned."
+                        statusData?.error ||
+                        statusData?.detail ||
+                        "Video generation failed."
+
                 });
+
             }
 
             return res.status(200).json({
+
                 success: true,
-                status: "succeeded",
-                video_url: videoUrl,
-                videoUrl: videoUrl,
-                output: data.output
+
+                status:
+                    currentStatus ||
+                    "PROCESSING",
+
+                video_url:
+                    "",
+
+                videoUrl:
+                    "",
+
+                message:
+                    "Video अभी तैयार हो रही है।"
+
             });
+
         }
 
-        if (
-            currentStatus === "failed" ||
-            currentStatus === "canceled" ||
-            currentStatus === "cancelled"
-        ) {
+        /* -------------------------------------------------
+           GET FINAL RESULT
+        ------------------------------------------------- */
 
-            return res.status(200).json({
+        const responseUrl =
+            "https://queue.fal.run/" +
+            "fal-ai/pixverse/v6/text-to-video/requests/" +
+            encodeURIComponent(requestId);
+
+        const resultResponse =
+            await fetch(
+                responseUrl,
+                {
+                    method: "GET",
+
+                    headers: {
+                        "Authorization":
+                            "Key " + apiKey,
+
+                        "Accept":
+                            "application/json"
+                    }
+                }
+            );
+
+        const resultRaw =
+            await resultResponse.text();
+
+        console.log(
+            "FAL RESULT HTTP:",
+            resultResponse.status
+        );
+
+        console.log(
+            "FAL RESULT:",
+            resultRaw.substring(0, 3000)
+        );
+
+        let resultData = {};
+
+        try {
+            resultData =
+                resultRaw
+                    ? JSON.parse(resultRaw)
+                    : {};
+        } catch {
+
+            return res.status(502).json({
                 success: false,
-                status: currentStatus,
                 error:
-                    data?.error ||
-                    "Replicate video generation failed."
+                    "fal.ai result ने valid JSON नहीं भेजा।"
             });
+
+        }
+
+        if (!resultResponse.ok) {
+
+            return res.status(
+                resultResponse.status
+            ).json({
+                success: false,
+                error:
+                    resultData?.detail ||
+                    resultData?.error ||
+                    resultData?.message ||
+                    "fal.ai result request failed."
+            });
+
+        }
+
+        const videoUrl =
+            resultData?.video?.url ||
+            resultData?.output?.video?.url ||
+            resultData?.output?.url ||
+            "";
+
+        if (!videoUrl) {
+
+            return res.status(502).json({
+
+                success: false,
+
+                error:
+                    "Video complete हुई लेकिन video URL नहीं मिला।",
+
+                fal_response:
+                    resultData
+
+            });
+
         }
 
         return res.status(200).json({
+
             success: true,
+
             status:
-                currentStatus || "processing",
-            video_url: "",
-            videoUrl: "",
-            message:
-                "Video अभी तैयार हो रही है।"
+                "COMPLETED",
+
+            video_url:
+                String(videoUrl),
+
+            videoUrl:
+                String(videoUrl),
+
+            output:
+                resultData?.video ||
+                resultData?.output ||
+                null
+
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI Video Status Error:",
+            "Gill AI FAL Video Status Error:",
             error
         );
 
         return res.status(500).json({
+
             success: false,
+
             error:
                 error?.message ||
                 "Internal video status error."
+
         });
+
     }
+
 }
