@@ -1,7 +1,7 @@
 /* =========================================================
    Gill AI Ultimate v8
    api/chat.js
-   SIMPLE OPENROUTER CHAT API
+   OPENROUTER CHAT API
 ========================================================= */
 
 export default async function handler(req, res) {
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     try {
 
         /* -------------------------------------------------
-           API KEY
+           OPENROUTER API KEY
         ------------------------------------------------- */
 
         const apiKey =
@@ -39,24 +39,22 @@ export default async function handler(req, res) {
         }
 
         /* -------------------------------------------------
-           BODY
+           READ REQUEST BODY
         ------------------------------------------------- */
 
-        let body =
-            req.body || {};
+        let body = req.body || {};
 
         if (typeof body === "string") {
 
             try {
 
-                body =
-                    JSON.parse(body);
+                body = JSON.parse(body);
 
             } catch {
 
                 return res.status(400).json({
                     success: false,
-                    error: "Invalid JSON body."
+                    error: "Invalid JSON request body."
                 });
 
             }
@@ -65,83 +63,79 @@ export default async function handler(req, res) {
 
         const message =
             String(
-                body.message || ""
+                body.message ||
+                body.prompt ||
+                ""
             ).trim();
 
         if (!message) {
 
             return res.status(400).json({
                 success: false,
-                error:
-                    "Message is required."
+                error: "Message is required."
             });
 
         }
 
         /* -------------------------------------------------
-           OPENROUTER
+           OPENROUTER REQUEST
         ------------------------------------------------- */
 
-        const response =
-            await fetch(
-                "https://openrouter.ai/api/v1/chat/completions",
-                {
+        const response = await fetch(
+            "https://openrouter.ai/api/v1/chat/completions",
+            {
 
-                    method: "POST",
+                method: "POST",
 
-                    headers: {
+                headers: {
 
-                        "Authorization":
-                            "Bearer " +
-                            apiKey,
+                    "Authorization":
+                        "Bearer " + apiKey,
 
-                        "Content-Type":
-                            "application/json",
+                    "Content-Type":
+                        "application/json",
 
-                        "Accept":
-                            "application/json",
+                    "Accept":
+                        "application/json",
 
-                        "HTTP-Referer":
-                            "https://gill-ai.vercel.app",
+                    "HTTP-Referer":
+                        "https://gill-ai.vercel.app",
 
-                        "X-Title":
-                            "Gill AI Ultimate v8"
+                    "X-Title":
+                        "Gill AI Ultimate v8"
 
-                    },
+                },
 
-                    body:
-                        JSON.stringify({
+                body: JSON.stringify({
 
-                            model:
-                                "openrouter/free",
+                    model:
+                        "openrouter/free",
 
-                            messages: [
+                    messages: [
 
-                                {
-                                    role:
-                                        "system",
+                        {
+                            role: "system",
 
-                                    content:
-                                        "You are Gill AI Ultimate v8, a helpful AI assistant. Reply in the same language as the user. Be clear, friendly and concise."
-                                },
+                            content:
+                                "You are Gill AI Ultimate v8. You are a helpful, friendly AI assistant. Answer clearly and naturally. Reply in the same language as the user."
+                        },
 
-                                {
-                                    role:
-                                        "user",
+                        {
+                            role: "user",
 
-                                    content:
-                                        message
-                                }
+                            content:
+                                message
+                        }
 
-                            ]
+                    ]
 
-                        })
+                })
 
-                }
-            );
+            }
+        );
 
         /* -------------------------------------------------
-           READ RESPONSE
+           READ RAW RESPONSE
         ------------------------------------------------- */
 
         const raw =
@@ -154,14 +148,11 @@ export default async function handler(req, res) {
 
         console.log(
             "OPENROUTER RESPONSE:",
-            raw.substring(
-                0,
-                3000
-            )
+            raw.substring(0, 3000)
         );
 
         /* -------------------------------------------------
-           JSON PARSE
+           PARSE JSON
         ------------------------------------------------- */
 
         let data = {};
@@ -186,20 +177,22 @@ export default async function handler(req, res) {
                     response.status,
 
                 details:
-                    raw.substring(
-                        0,
-                        1000
-                    )
+                    raw.substring(0, 1000)
 
             });
 
         }
 
         /* -------------------------------------------------
-           API ERROR
+           OPENROUTER ERROR
         ------------------------------------------------- */
 
         if (!response.ok) {
+
+            console.error(
+                "OPENROUTER ERROR:",
+                data
+            );
 
             return res.status(
                 response.status
@@ -221,11 +214,22 @@ export default async function handler(req, res) {
         }
 
         /* -------------------------------------------------
-           GET REPLY
+           GET AI REPLY
         ------------------------------------------------- */
 
-        const reply =
+        let reply =
             data?.choices?.[0]?.message?.content;
+
+        if (
+            typeof reply !== "string"
+        ) {
+
+            reply = "";
+
+        }
+
+        reply =
+            reply.trim();
 
         if (!reply) {
 
@@ -234,7 +238,7 @@ export default async function handler(req, res) {
                 success: false,
 
                 error:
-                    "OpenRouter response में AI reply नहीं मिला."
+                    "AI response में reply नहीं मिला।"
 
             });
 
@@ -246,18 +250,16 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
 
-            success:
-                true,
+            success: true,
 
-            reply:
-                String(reply).trim()
+            reply: reply
 
         });
 
     } catch (error) {
 
         console.error(
-            "Gill AI Chat Error:",
+            "Gill AI Chat Server Error:",
             error
         );
 
