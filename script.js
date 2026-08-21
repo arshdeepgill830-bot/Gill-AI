@@ -335,9 +335,11 @@ async function generateGillImage() {
         if (!response.ok || !data.success) {
 
             result.innerHTML =
-                "❌ " +
-                (data.error ||
-                 "Image generation failed.");
+    "❌ " +
+    (data.error || "Image generation failed.") +
+    "<br><br>" +
+    (data.status ? "Status: " + data.status + "<br>" : "") +
+    (data.details ? "Details: " + data.details : "");
 
             return;
         }
