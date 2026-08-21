@@ -1,5 +1,4 @@
-
-   import { neon } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 
 export default async function handler(req, res) {
     if (req.method !== "POST") {
@@ -83,25 +82,23 @@ export default async function handler(req, res) {
                 body: JSON.stringify({
                     model: "google/gemini-2.5-flash-image",
                     prompt: prompt,
-                    n: 1,
-                    aspect_ratio: "1:1",
-                    resolution: "1K",
-                    output_format: "png"
+                    n: 1
                 })
             }
         );
 
         const text = await response.text();
 
-        let data;
+        let data = null;
 
         try {
             data = JSON.parse(text);
         } catch {
-            data = null;
+            // Keep raw response for diagnostics
         }
 
-        if (!response.ok || !data) {
+        if (!response.ok) {
+
             await sql`
                 UPDATE users
                 SET
@@ -114,18 +111,23 @@ export default async function handler(req, res) {
 
             return res.status(502).json({
                 success: false,
-                error: "Image generation failed",
+                error: "OpenRouter image API failed",
+                status: response.status,
                 details:
                     data?.error?.message ||
-                    text.slice(0, 500)
+                    text.slice(0, 1000)
             });
         }
 
-        const imageData = data?.data?.[0]?.b64_json;
+        const imageData =
+            data?.data?.[0]?.b64_json;
+
         const mediaType =
-            data?.data?.[0]?.media_type || "image/png";
+            data?.data?.[0]?.media_type ||
+            "image/png";
 
         if (!imageData) {
+
             await sql`
                 UPDATE users
                 SET
@@ -138,17 +140,20 @@ export default async function handler(req, res) {
 
             return res.status(502).json({
                 success: false,
-                error: "No image returned"
+                error: "OpenRouter returned no image",
+                response: data || text.slice(0, 1000)
             });
         }
 
         return res.status(200).json({
             success: true,
-            image: `data:${mediaType};base64,${imageData}`,
+            image:
+                `data:${mediaType};base64,${imageData}`,
             credits: reserved[0].credits
         });
 
     } catch (error) {
+
         console.error(
             "Gill AI Image Error:",
             error
@@ -175,7 +180,8 @@ export default async function handler(req, res) {
 
         return res.status(500).json({
             success: false,
-            error: "Image request failed"
+            error: "Image request failed",
+            details: error.message
         });
     }
 }
