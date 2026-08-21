@@ -1,155 +1,257 @@
-import { neon } from "@neondatabase/serverless";
+/* =========================================================
+   Gill AI Ultimate v8
+   api/chat.js
+   SIMPLE OPENROUTER CHAT API
+========================================================= */
 
 export default async function handler(req, res) {
+
+    /* -----------------------------------------------------
+       ONLY POST
+    ----------------------------------------------------- */
+
     if (req.method !== "POST") {
+
         return res.status(405).json({
+            success: false,
             error: "Method Not Allowed"
         });
+
     }
 
-    const sql = neon(process.env.DATABASE_URL);
-    const userId = "guest";
-    const cost = 1;
-
-    let creditDeducted = false;
-
     try {
-        const { message } = req.body || {};
 
-        if (!message || typeof message !== "string") {
-            return res.status(400).json({
-                error: "Message is required"
+        /* -------------------------------------------------
+           API KEY
+        ------------------------------------------------- */
+
+        const apiKey =
+            process.env.OPENROUTER_API_KEY;
+
+        if (!apiKey) {
+
+            return res.status(500).json({
+                success: false,
+                error:
+                    "OPENROUTER_API_KEY is missing in Vercel Environment Variables."
             });
+
         }
 
-        // Create guest user if it doesn't exist
-        await sql`
-            INSERT INTO users (
-                id,
-                plan,
-                credits,
-                chat_used,
-                image_used,
-                video_used
-            )
-            VALUES (
-                ${userId},
-                'Free',
-                100,
-                0,
-                0,
-                0
-            )
-            ON CONFLICT (id) DO NOTHING
-        `;
+        /* -------------------------------------------------
+           BODY
+        ------------------------------------------------- */
 
-        // Deduct 1 credit atomically
-        const reserved = await sql`
-            UPDATE users
-            SET
-                credits = credits - ${cost},
-                chat_used = chat_used + 1,
-                updated_at = NOW()
-            WHERE
-                id = ${userId}
-                AND credits >= ${cost}
-            RETURNING credits
-        `;
+        let body =
+            req.body || {};
 
-        if (!reserved.length) {
-            return res.status(402).json({
-                error: "Insufficient credits",
-                message: "आपके credits खत्म हो गए हैं।"
-            });
-        }
+        if (typeof body === "string") {
 
-        creditDeducted = true;
+            try {
 
-        const response = await fetch(
-            "https://openrouter.ai/api/v1/chat/completions",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization":
-                        `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                    "HTTP-Referer":
-                        "https://gill-ai.vercel.app",
-                    "X-Title":
-                        "Gill AI Ultimate v9"
-                },
-                body: JSON.stringify({
-                    model: "openrouter/free",
-                    messages: [
-                        {
-                            role: "user",
-                            content: message
-                        }
-                    ]
-                })
+                body =
+                    JSON.parse(body);
+
+            } catch {
+
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid JSON body."
+                });
+
             }
+
+        }
+
+        const message =
+            String(
+                body.message || ""
+            ).trim();
+
+        if (!message) {
+
+            return res.status(400).json({
+                success: false,
+                error:
+                    "Message is required."
+            });
+
+        }
+
+        /* -------------------------------------------------
+           OPENROUTER
+        ------------------------------------------------- */
+
+        const response =
+            await fetch(
+                "https://openrouter.ai/api/v1/chat/completions",
+                {
+
+                    method: "POST",
+
+                    headers: {
+
+                        "Authorization":
+                            "Bearer " +
+                            apiKey,
+
+                        "Content-Type":
+                            "application/json",
+
+                        "Accept":
+                            "application/json",
+
+                        "HTTP-Referer":
+                            "https://gill-ai.vercel.app",
+
+                        "X-Title":
+                            "Gill AI Ultimate v8"
+
+                    },
+
+                    body:
+                        JSON.stringify({
+
+                            model:
+                                "openrouter/free",
+
+                            messages: [
+
+                                {
+                                    role:
+                                        "system",
+
+                                    content:
+                                        "You are Gill AI Ultimate v8, a helpful AI assistant. Reply in the same language as the user. Be clear, friendly and concise."
+                                },
+
+                                {
+                                    role:
+                                        "user",
+
+                                    content:
+                                        message
+                                }
+
+                            ]
+
+                        })
+
+                }
+            );
+
+        /* -------------------------------------------------
+           READ RESPONSE
+        ------------------------------------------------- */
+
+        const raw =
+            await response.text();
+
+        console.log(
+            "OPENROUTER STATUS:",
+            response.status
         );
 
-        const text = await response.text();
+        console.log(
+            "OPENROUTER RESPONSE:",
+            raw.substring(
+                0,
+                3000
+            )
+        );
 
-        let data;
+        /* -------------------------------------------------
+           JSON PARSE
+        ------------------------------------------------- */
+
+        let data = {};
 
         try {
-            data = JSON.parse(text);
+
+            data =
+                raw
+                    ? JSON.parse(raw)
+                    : {};
+
         } catch {
-            data = null;
-        }
-
-        // Refund if OpenRouter fails
-        if (!response.ok || !data) {
-
-            if (creditDeducted) {
-                await sql`
-                    UPDATE users
-                    SET
-                        credits = credits + ${cost},
-                        chat_used =
-                            GREATEST(chat_used - 1, 0),
-                        updated_at = NOW()
-                    WHERE id = ${userId}
-                `;
-            }
 
             return res.status(502).json({
-                error: "AI server error",
+
+                success: false,
+
+                error:
+                    "OpenRouter ने valid JSON response नहीं भेजा।",
+
+                status:
+                    response.status,
+
                 details:
-                    data?.error?.message ||
-                    text.slice(0, 500)
+                    raw.substring(
+                        0,
+                        1000
+                    )
+
             });
+
         }
+
+        /* -------------------------------------------------
+           API ERROR
+        ------------------------------------------------- */
+
+        if (!response.ok) {
+
+            return res.status(
+                response.status
+            ).json({
+
+                success: false,
+
+                error:
+                    data?.error?.message ||
+                    data?.error ||
+                    data?.message ||
+                    "OpenRouter request failed.",
+
+                status:
+                    response.status
+
+            });
+
+        }
+
+        /* -------------------------------------------------
+           GET REPLY
+        ------------------------------------------------- */
 
         const reply =
             data?.choices?.[0]?.message?.content;
 
         if (!reply) {
 
-            if (creditDeducted) {
-                await sql`
-                    UPDATE users
-                    SET
-                        credits = credits + ${cost},
-                        chat_used =
-                            GREATEST(chat_used - 1, 0),
-                        updated_at = NOW()
-                    WHERE id = ${userId}
-                `;
-            }
-
             return res.status(502).json({
-                error: "AI returned an empty response"
+
+                success: false,
+
+                error:
+                    "OpenRouter response में AI reply नहीं मिला."
+
             });
+
         }
 
-        // Keep the response format compatible
-        // with your existing frontend.
+        /* -------------------------------------------------
+           SUCCESS
+        ------------------------------------------------- */
+
         return res.status(200).json({
-            reply: reply,
-            credits: reserved[0].credits
+
+            success:
+                true,
+
+            reply:
+                String(reply).trim()
+
         });
 
     } catch (error) {
@@ -159,28 +261,16 @@ export default async function handler(req, res) {
             error
         );
 
-        // Refund credit on unexpected failure
-        if (creditDeducted) {
-            try {
-                await sql`
-                    UPDATE users
-                    SET
-                        credits = credits + ${cost},
-                        chat_used =
-                            GREATEST(chat_used - 1, 0),
-                        updated_at = NOW()
-                    WHERE id = ${userId}
-                `;
-            } catch (refundError) {
-                console.error(
-                    "Credit Refund Error:",
-                    refundError
-                );
-            }
-        }
-
         return res.status(500).json({
-            error: "Chat request failed"
+
+            success: false,
+
+            error:
+                error?.message ||
+                "Internal chat server error."
+
         });
+
     }
+
 }
